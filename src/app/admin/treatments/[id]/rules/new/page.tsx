@@ -26,8 +26,7 @@ export default function NewMatchingRulePage({ params }: { params: Promise<{ id: 
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-10 max-w-7xl mx-auto">
-            {/* Header */}
+        <div className="mx-auto space-y-6 animate-fade-in pb-10">
             <div>
                 <Link
                     href={`/admin/treatments/${treatmentId}`}

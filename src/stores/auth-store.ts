@@ -12,6 +12,7 @@ interface AuthState {
     error: string | null;
     login: (credentials: LoginCredentials) => Promise<void>;
     logout: () => void;
+    refreshTokens: () => Promise<boolean>;
     clearError: () => void;
 }
 
@@ -103,6 +104,50 @@ export const useAuthStore = create<AuthState>()(
                     isLoading: false,
                     error: null,
                 });
+            },
+
+            refreshTokens: async () => {
+                const { refreshToken } = get();
+                if (!refreshToken) {
+                    return false;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/auth/refresh`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refreshToken }),
+                    });
+
+                    if (!response.ok) {
+                        set({
+                            user: null,
+                            accessToken: null,
+                            refreshToken: null,
+                            isAuthenticated: false,
+                        });
+                        return false;
+                    }
+
+                    const data = await response.json();
+                    const { accessToken, refreshToken: newRefreshToken } = data.data;
+
+                    set({
+                        accessToken,
+                        refreshToken: newRefreshToken,
+                    });
+
+                    return true;
+                } catch (error) {
+                    console.error('Token refresh error:', error);
+                    set({
+                        user: null,
+                        accessToken: null,
+                        refreshToken: null,
+                        isAuthenticated: false,
+                    });
+                    return false;
+                }
             },
 
             clearError: () => {

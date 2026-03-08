@@ -5,10 +5,13 @@ import {
     getProviderById,
     createProvider,
     updateProvider,
+    generateInviteLink,
     type ProviderListItem,
     type ProviderWithTreatments,
     type CreateProviderPayload,
     type ProviderDetail,
+    type InviteProviderPayload,
+    type InviteProviderResponse,
 } from '@/services/provider-service';
 
 // ============================================
@@ -33,15 +36,12 @@ export const providerKeys = {
  * Automatically handles loading, error, caching and refetch.
  */
 export function useProviders(filters?: { status?: string; search?: string }) {
-    const accessToken = useAuthStore((s) => s.accessToken);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     return useQuery<ProviderListItem[], Error>({
         queryKey: providerKeys.list(filters ?? {}),
-        queryFn: () => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return getProviders(accessToken, filters);
-        },
-        enabled: !!accessToken,
+        queryFn: () => getProviders(filters),
+        enabled: isAuthenticated,
     });
 }
 
@@ -49,15 +49,12 @@ export function useProviders(filters?: { status?: string; search?: string }) {
  * Fetch a single provider by ID with linked treatments.
  */
 export function useProvider(id: string) {
-    const accessToken = useAuthStore((s) => s.accessToken);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     return useQuery<ProviderWithTreatments, Error>({
         queryKey: providerKeys.detail(id),
-        queryFn: () => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return getProviderById(accessToken, id);
-        },
-        enabled: !!accessToken && !!id,
+        queryFn: () => getProviderById(id),
+        enabled: isAuthenticated && !!id,
     });
 }
 
@@ -70,14 +67,10 @@ export function useProvider(id: string) {
  * Automatically invalidates the provider list cache on success.
  */
 export function useCreateProvider() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<ProviderDetail, Error, CreateProviderPayload>({
-        mutationFn: (payload) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return createProvider(accessToken, payload);
-        },
+        mutationFn: (payload) => createProvider(payload),
         onSuccess: () => {
             // Invalidate the list so it refetches with the new provider
             queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
@@ -90,7 +83,6 @@ export function useCreateProvider() {
  * Automatically invalidates both the list and detail cache on success.
  */
 export function useUpdateProvider() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -98,15 +90,21 @@ export function useUpdateProvider() {
         Error,
         { id: string; payload: Partial<CreateProviderPayload> & { status?: string } }
     >({
-        mutationFn: ({ id, payload }) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return updateProvider(accessToken, id, payload);
-        },
+        mutationFn: ({ id, payload }) => updateProvider(id, payload),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
             queryClient.invalidateQueries({
                 queryKey: providerKeys.detail(variables.id),
             });
         },
+    });
+}
+
+/**
+ * Generate a provider invite link.
+ */
+export function useGenerateInviteLink() {
+    return useMutation<InviteProviderResponse, Error, InviteProviderPayload>({
+        mutationFn: (payload) => generateInviteLink(payload),
     });
 }

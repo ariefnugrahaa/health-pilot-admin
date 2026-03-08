@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
     Search,
@@ -19,6 +20,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { AddProviderMenu } from '@/components/providers/AddProviderMenu';
 
 // ==========================================
 // Status Display Helpers
@@ -87,9 +89,11 @@ const STATUS_LABELS: Record<string, string> = {
 // ==========================================
 
 export default function ProvidersPage() {
+    const router = useRouter();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const [showAddMenu, setShowAddMenu] = useState(false);
 
     // React Query handles loading, error, caching, and refetch automatically
     const {
@@ -103,6 +107,14 @@ export default function ProvidersPage() {
     });
 
     const activeCount = providers.filter((p) => p.status === 'ACTIVE').length;
+
+    const handleAddManual = () => {
+        router.push('/admin/providers/new');
+    };
+
+    const handleInviteProvider = () => {
+        router.push('/admin/providers/invite');
+    };
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
@@ -119,13 +131,21 @@ export default function ProvidersPage() {
                         Manage providers that appear in user recommendations
                     </p>
                 </div>
-                <Link
-                    href="/admin/providers/new"
-                    className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add New Provider
-                </Link>
+                <div className="relative">
+                    <button
+                        onClick={() => setShowAddMenu(!showAddMenu)}
+                        className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add Provider
+                    </button>
+                    <AddProviderMenu
+                        isOpen={showAddMenu}
+                        onClose={() => setShowAddMenu(false)}
+                        onAddManual={handleAddManual}
+                        onInviteProvider={handleInviteProvider}
+                    />
+                </div>
             </div>
 
             {/* Filters Row */}

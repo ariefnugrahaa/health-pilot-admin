@@ -1,11 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-
-function getAuthHeaders(token: string): HeadersInit {
-    return {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-    };
-}
+import { api } from '@/lib/api-client';
 
 interface ApiResponse<T> {
     success: boolean;
@@ -45,8 +38,23 @@ export interface TreatmentListItem {
         id: string;
         name: string;
     };
+    treatmentProviders?: TreatmentProvider[];
     _count: {
         matchingRules: number;
+    };
+}
+
+export interface TreatmentProvider {
+    id: string;
+    treatmentId: string;
+    providerId: string;
+    isPrimary: boolean;
+    createdAt: string;
+    provider: {
+        id: string;
+        name: string;
+        slug: string;
+        status: string;
     };
 }
 
@@ -114,14 +122,24 @@ export interface TreatmentDetail {
     description: string | null;
     category: TreatmentCategory;
     supportedCategories: string | null;
+    // Recommendation Settings
+    includeInMatching: boolean;
+    forceRankingOverride: string | null;
+    // Solution Properties
+    requiresBloodTest: boolean;
+    injectionBased: boolean;
+    prescriptionRequired: boolean;
+    // Eligibility Overview
+    requiresBiomarkers: boolean;
+    minAge: number | null;
+    maxAge: number | null;
+    allowedGenders: string[];
+    additionalNotes: string | null;
+    // Pricing
     priceOneTime: string | null;
     priceSubscription: string | null;
     subscriptionFrequency: string | null;
     currency: string;
-    minAge: number | null;
-    maxAge: number | null;
-    allowedGenders: string[];
-    requiresBloodTest: boolean;
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
@@ -129,9 +147,25 @@ export interface TreatmentDetail {
         id: string;
         name: string;
     };
+    treatmentProviders?: TreatmentProvider[];
     matchingRules: MatchingRule[];
-    treatmentBiomarkers: unknown[];
+    treatmentBiomarkers: TreatmentBiomarker[];
     eligibleProviders: EligibleProvider[];
+}
+
+export interface TreatmentBiomarker {
+    id: string;
+    treatmentId: string;
+    biomarkerId: string;
+    isRequired: boolean;
+    minValue: number | null;
+    maxValue: number | null;
+    biomarker: {
+        id: string;
+        name: string;
+        slug: string;
+        category: string;
+    };
 }
 
 export interface EligibleProvider {
@@ -143,20 +177,31 @@ export interface EligibleProvider {
 }
 
 export interface CreateTreatmentPayload {
-    providerId: string;
+    providerId?: string; // Deprecated: use providerIds
+    providerIds?: string[]; // New: array of provider IDs
     name: string;
     slug: string;
     description?: string;
     category: TreatmentCategory;
     supportedCategories?: string;
+    // Recommendation Settings
+    includeInMatching?: boolean;
+    forceRankingOverride?: string;
+    // Solution Properties
+    requiresBloodTest?: boolean;
+    injectionBased?: boolean;
+    prescriptionRequired?: boolean;
+    // Eligibility Overview
+    requiresBiomarkers?: boolean;
+    minAge?: number | null;
+    maxAge?: number | null;
+    allowedGenders?: string[];
+    additionalNotes?: string;
+    // Pricing
     priceOneTime?: number | null;
     priceSubscription?: number | null;
     subscriptionFrequency?: string;
     currency?: string;
-    minAge?: number | null;
-    maxAge?: number | null;
-    allowedGenders?: string[];
-    requiresBloodTest?: boolean;
     isActive?: boolean;
 }
 
@@ -175,7 +220,6 @@ export interface TreatmentFilters {
  * Get all treatments (Admin)
  */
 export async function getTreatments(
-    token: string,
     filters?: TreatmentFilters
 ): Promise<TreatmentListItem[]> {
     const params = new URLSearchParams();
@@ -184,9 +228,7 @@ export async function getTreatments(
     if (filters?.search) params.append('search', filters.search);
     if (filters?.providerId) params.append('providerId', filters.providerId);
 
-    const res = await fetch(`${API_URL}/treatments/admin/list?${params.toString()}`, {
-        headers: getAuthHeaders(token),
-    });
+    const res = await api.get(`/treatments/admin/list?${params.toString()}`);
 
     const data: ApiResponse<TreatmentListItem[]> = await res.json();
 
@@ -200,13 +242,8 @@ export async function getTreatments(
 /**
  * Get single treatment by ID
  */
-export async function getTreatment(
-    token: string,
-    id: string
-): Promise<TreatmentDetail> {
-    const res = await fetch(`${API_URL}/treatments/${id}`, {
-        headers: getAuthHeaders(token),
-    });
+export async function getTreatment(id: string): Promise<TreatmentDetail> {
+    const res = await api.get(`/treatments/${id}`);
 
     const data: ApiResponse<TreatmentDetail> = await res.json();
 
@@ -221,14 +258,9 @@ export async function getTreatment(
  * Create new treatment
  */
 export async function createTreatment(
-    token: string,
     payload: CreateTreatmentPayload
 ): Promise<TreatmentDetail> {
-    const res = await fetch(`${API_URL}/treatments`, {
-        method: 'POST',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.post('/treatments', payload);
 
     const data: ApiResponse<TreatmentDetail> = await res.json();
 
@@ -243,15 +275,10 @@ export async function createTreatment(
  * Update treatment
  */
 export async function updateTreatment(
-    token: string,
     id: string,
     payload: Partial<CreateTreatmentPayload>
 ): Promise<TreatmentDetail> {
-    const res = await fetch(`${API_URL}/treatments/${id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.patch(`/treatments/${id}`, payload);
 
     const data: ApiResponse<TreatmentDetail> = await res.json();
 
@@ -265,14 +292,8 @@ export async function updateTreatment(
 /**
  * Delete treatment
  */
-export async function deleteTreatment(
-    token: string,
-    id: string
-): Promise<void> {
-    const res = await fetch(`${API_URL}/treatments/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(token),
-    });
+export async function deleteTreatment(id: string): Promise<void> {
+    const res = await api.delete(`/treatments/${id}`);
 
     if (!res.ok) {
         // Try to parse error message
@@ -289,15 +310,10 @@ export async function deleteTreatment(
  * Create Matching Rule
  */
 export async function createMatchingRule(
-    token: string,
     treatmentId: string,
     payload: CreateMatchingRulePayload
 ): Promise<MatchingRule> {
-    const res = await fetch(`${API_URL}/treatments/${treatmentId}/rules`, {
-        method: 'POST',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.post(`/treatments/${treatmentId}/rules`, payload);
 
     const data: ApiResponse<MatchingRule> = await res.json();
 
@@ -312,16 +328,11 @@ export async function createMatchingRule(
  * Update Matching Rule
  */
 export async function updateMatchingRule(
-    token: string,
     treatmentId: string,
     ruleId: string,
     payload: Partial<CreateMatchingRulePayload>
 ): Promise<MatchingRule> {
-    const res = await fetch(`${API_URL}/treatments/${treatmentId}/rules/${ruleId}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.patch(`/treatments/${treatmentId}/rules/${ruleId}`, payload);
 
     const data: ApiResponse<MatchingRule> = await res.json();
 
@@ -336,14 +347,10 @@ export async function updateMatchingRule(
  * Delete Matching Rule
  */
 export async function deleteMatchingRule(
-    token: string,
     treatmentId: string,
     ruleId: string
 ): Promise<void> {
-    const res = await fetch(`${API_URL}/treatments/${treatmentId}/rules/${ruleId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(token),
-    });
+    const res = await api.delete(`/treatments/${treatmentId}/rules/${ruleId}`);
 
     if (!res.ok) {
         try {
@@ -355,4 +362,3 @@ export async function deleteMatchingRule(
         }
     }
 }
-

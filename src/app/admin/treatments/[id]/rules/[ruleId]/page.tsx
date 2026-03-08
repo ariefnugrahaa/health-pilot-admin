@@ -73,7 +73,7 @@ export default function EditMatchingRulePage({ params }: { params: Promise<{ id:
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-10 max-w-7xl mx-auto">
+        <div className="space-y-6 animate-fade-in pb-10 mx-auto">
             {/* Header */}
             <div>
                 <Link

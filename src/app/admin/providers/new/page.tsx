@@ -3,25 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin } from 'lucide-react';
-import { useAuthStore } from '@/stores/auth-store';
+import { ArrowLeft, Globe, Mail, Phone, Building2, Stethoscope, Link2, Percent } from 'lucide-react';
 import { createProvider } from '@/services/provider-service';
-import { Input } from '@/components/ui/input';
 
 // ==========================================
 // Constants
 // ==========================================
 
-const PROVIDER_TYPES = ['Individual', 'Clinic', 'Hospital', 'Telehealth', 'Laboratory'];
-
-const PROVIDER_STATUSES = [
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
-    { value: 'SUSPENDED', label: 'Suspended' },
-    { value: 'INACTIVE', label: 'Inactive' },
+const PROVIDER_TYPES = [
+    { value: 'Individual', label: 'Individual' },
+    { value: 'Clinic', label: 'Clinic' },
+    { value: 'Hospital', label: 'Hospital' },
+    { value: 'Telehealth', label: 'Telehealth' },
+    { value: 'Laboratory', label: 'Laboratory' },
 ];
 
-const REGIONS = [
+const COUNTRIES = [
     'United States of America',
     'United Kingdom',
     'Canada',
@@ -31,40 +28,36 @@ const REGIONS = [
     'Singapore',
 ];
 
-const LOCATIONS = [
-    'New York City, NY',
-    'Los Angeles, CA',
-    'Chicago, IL',
-    'Houston, TX',
-    'Phoenix, AZ',
-    'London, UK',
-    'Manchester, UK',
-    'Toronto, CA',
-    'Sydney, AU',
+const COMMISSION_TYPES = [
+    { value: 'percentage', label: 'Percentage' },
+    { value: 'fixed', label: 'Fixed Amount' },
+    { value: 'tiered', label: 'Tiered' },
 ];
-
-const COVERAGE_TYPES = ['Onsite', 'Remote', 'Hybrid'];
 
 // ==========================================
 // Form State Interface
 // ==========================================
 
 interface ProviderFormState {
-    name: string;
+    // Provider Information
+    providerName: string;
+    businessName: string;
+    websiteUrl: string;
+    contactEmail: string;
+    contactPhone: string;
+    countryLocation: string;
     providerType: string;
-    status: string;
-    includeInMatching: boolean;
-    region: string;
-    location: string;
-    coverageType: string;
+    prescriptionCapable: string; // 'yes' | 'no'
+
+    // Solutions Summary
+    linkedSolutions: boolean;
+    affiliateLink: string;
+    commissionType: string;
+    commissionPercentage: string;
 }
 
 // ==========================================
-// Select Component (custom styled)
-// ==========================================
-
-// ==========================================
-// Select Component (custom styled)
+// Select Component
 // ==========================================
 
 function SelectField({
@@ -73,29 +66,25 @@ function SelectField({
     onChange,
     options,
     placeholder,
-    icon,
+    required = false,
 }: {
     label: string;
     value: string;
     onChange: (val: string) => void;
     options: { value: string; label: string }[];
     placeholder?: string;
-    icon?: React.ReactNode;
+    required?: boolean;
 }) {
     return (
         <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">{label}</label>
+            <label className="block text-sm font-medium text-slate-700">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
             <div className="relative">
-                {icon && (
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                        {icon}
-                    </div>
-                )}
                 <select
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className={`w-full h-10 ${icon ? 'pl-10 pr-10' : 'px-3'
-                        } py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors`}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
                 >
                     {placeholder && (
                         <option value="" disabled>
@@ -129,23 +118,153 @@ function SelectField({
 }
 
 // ==========================================
+// Input Field with Icon
+// ==========================================
+
+function InputWithIcon({
+    label,
+    value,
+    onChange,
+    placeholder,
+    type = 'text',
+    icon,
+    required = false,
+}: {
+    label: string;
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    type?: string;
+    icon?: React.ReactNode;
+    required?: boolean;
+}) {
+    return (
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div className="relative">
+                {icon && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        {icon}
+                    </div>
+                )}
+                <input
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    className={`w-full h-10 ${icon ? 'pl-10' : 'px-3'} pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors`}
+                />
+            </div>
+        </div>
+    );
+}
+
+// ==========================================
+// Radio Group Component
+// ==========================================
+
+function RadioGroup({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (val: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">{label}</label>
+            <div className="flex items-center gap-6 h-10">
+                {options.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                        <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${value === option.value
+                                ? 'border-teal-600 bg-teal-600'
+                                : 'border-slate-300 bg-white'
+                                }`}
+                            onClick={() => onChange(option.value)}
+                        >
+                            {value === option.value && (
+                                <div className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                        </div>
+                        <span className="text-sm text-slate-700">{option.label}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ==========================================
+// Checkbox Component
+// ==========================================
+
+function Checkbox({
+    label,
+    checked,
+    onChange,
+}: {
+    label: string;
+    checked: boolean;
+    onChange: (val: boolean) => void;
+}) {
+    return (
+        <label className="flex items-center gap-3 cursor-pointer">
+            <div
+                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${checked
+                    ? 'border-teal-600 bg-teal-600'
+                    : 'border-slate-300 bg-white'
+                    }`}
+                onClick={() => onChange(!checked)}
+            >
+                {checked && (
+                    <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                )}
+            </div>
+            <span className="text-sm text-slate-700">{label}</span>
+        </label>
+    );
+}
+
+// ==========================================
 // Main Page Component
 // ==========================================
 
 export default function AddProviderPage() {
     const router = useRouter();
-    const { accessToken } = useAuthStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [form, setForm] = useState<ProviderFormState>({
-        name: '',
+        // Provider Information
+        providerName: '',
+        businessName: '',
+        websiteUrl: '',
+        contactEmail: '',
+        contactPhone: '',
+        countryLocation: 'United States of America',
         providerType: 'Individual',
-        status: 'ACTIVE',
-        includeInMatching: true,
-        region: 'United States of America',
-        location: 'New York City, NY',
-        coverageType: 'Onsite',
+        prescriptionCapable: 'yes',
+
+        // Solutions Summary
+        linkedSolutions: false,
+        affiliateLink: '',
+        commissionType: 'percentage',
+        commissionPercentage: '',
     });
 
     const updateField = <K extends keyof ProviderFormState>(
@@ -167,13 +286,8 @@ export default function AddProviderPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!form.name.trim()) {
+        if (!form.providerName.trim()) {
             setError('Provider name is required');
-            return;
-        }
-
-        if (!accessToken) {
-            setError('Authentication required');
             return;
         }
 
@@ -181,11 +295,27 @@ export default function AddProviderPage() {
         setError(null);
 
         try {
-            await createProvider(accessToken, {
-                name: form.name.trim(),
-                slug: generateSlug(form.name),
-                supportedRegions: form.location ? [form.location] : [],
-                acceptsBloodTests: form.includeInMatching,
+            // Convert percentage to decimal (e.g., 10% -> 0.10)
+            let commissionRate: number | undefined;
+            if (form.commissionPercentage) {
+                const percentage = parseFloat(form.commissionPercentage);
+                if (!isNaN(percentage)) {
+                    commissionRate = percentage / 100;
+                }
+            }
+
+            await createProvider({
+                name: form.providerName.trim(),
+                slug: generateSlug(form.providerName),
+                websiteUrl: form.websiteUrl || undefined,
+                businessName: form.businessName || undefined,
+                providerType: form.providerType || undefined,
+                contactEmail: form.contactEmail || undefined,
+                contactPhone: form.contactPhone || undefined,
+                supportedRegions: form.countryLocation ? [form.countryLocation] : [],
+                acceptsBloodTests: form.prescriptionCapable === 'yes',
+                affiliateLink: form.affiliateLink || undefined,
+                commissionRate,
             });
 
             router.push('/admin/providers');
@@ -197,7 +327,7 @@ export default function AddProviderPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto animate-fade-in pb-10">
+        <div className="animate-fade-in pb-10">
             {/* Back Link */}
             <Link
                 href="/admin/providers"
@@ -209,11 +339,11 @@ export default function AddProviderPage() {
 
             {/* Page Header */}
             <div className="mb-8">
-                <h1 className="text-3xl font-heading font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-slate-900">
                     Add New Provider
                 </h1>
-                <p className="text-slate-500 mt-1 text-base">
-                    Set up provider details and availability
+                <p className="text-slate-500 mt-1 text-sm">
+                    Manually create a provider profile inside HealthPilot.
                 </p>
             </div>
 
@@ -225,130 +355,151 @@ export default function AddProviderPage() {
             )}
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Basic Information Section */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Provider Information Section */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <h2 className="text-lg font-heading font-bold text-slate-900 mb-6">
-                        Basic Information
+                    <h2 className="text-base font-semibold text-slate-900 mb-5">
+                        Provider Information
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {/* Name */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-slate-700">
-                                Name
-                            </label>
-                            <Input
-                                value={form.name}
-                                onChange={(e) => updateField('name', e.target.value)}
+                    <div className="space-y-5">
+                        {/* Row 1: Provider Name & Business Name */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <InputWithIcon
+                                label="Provider Name"
+                                value={form.providerName}
+                                onChange={(val) => updateField('providerName', val)}
                                 placeholder="Dr. Sarah Lee"
-                                className="bg-white border-slate-200 h-10 rounded-lg"
+                                icon={<Stethoscope className="w-4 h-4" />}
+                                required
+                            />
+                            <InputWithIcon
+                                label="Business Name"
+                                value={form.businessName}
+                                onChange={(val) => updateField('businessName', val)}
+                                placeholder="Health Clinic Inc."
+                                icon={<Building2 className="w-4 h-4" />}
                             />
                         </div>
 
-                        {/* Provider Type */}
-                        <SelectField
-                            label="Provider Type"
-                            value={form.providerType}
-                            onChange={(val) => updateField('providerType', val)}
-                            options={PROVIDER_TYPES.map((t) => ({ value: t, label: t }))}
+                        {/* Row 2: Website URL (full width) */}
+                        <InputWithIcon
+                            label="Website URL"
+                            value={form.websiteUrl}
+                            onChange={(val) => updateField('websiteUrl', val)}
+                            placeholder="https://www.example.com"
+                            type="url"
+                            icon={<Globe className="w-4 h-4" />}
                         />
 
-                        {/* Status */}
-                        <SelectField
-                            label="Status"
-                            value={form.status}
-                            onChange={(val) => updateField('status', val)}
-                            options={PROVIDER_STATUSES}
-                        />
+                        {/* Row 3: Contact Email & Contact Phone */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <InputWithIcon
+                                label="Contact Email"
+                                value={form.contactEmail}
+                                onChange={(val) => updateField('contactEmail', val)}
+                                placeholder="contact@example.com"
+                                type="email"
+                                icon={<Mail className="w-4 h-4" />}
+                            />
+                            <InputWithIcon
+                                label="Contact Phone"
+                                value={form.contactPhone}
+                                onChange={(val) => updateField('contactPhone', val)}
+                                placeholder="+1 (555) 000-0000"
+                                type="tel"
+                                icon={<Phone className="w-4 h-4" />}
+                            />
+                        </div>
 
-                        {/* Eligibility Status */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-slate-700">
-                                Eligibility Status
-                            </label>
-                            <div className="h-10 px-3 bg-white border border-slate-200 rounded-lg flex items-center gap-3">
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={form.includeInMatching}
-                                        onChange={(e) =>
-                                            updateField('includeInMatching', e.target.checked)
-                                        }
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-5 h-5 border-2 border-slate-300 rounded peer-checked:bg-teal-600 peer-checked:border-teal-600 flex items-center justify-center transition-colors">
-                                        {form.includeInMatching && (
-                                            <svg
-                                                className="w-3 h-3 text-white"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                                strokeWidth={3}
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    d="M5 13l4 4L19 7"
-                                                />
-                                            </svg>
-                                        )}
-                                    </div>
-                                </label>
-                                <span className="text-sm text-slate-600">
-                                    Include in matching &quot;Yes/No&quot;
-                                </span>
-                            </div>
+                        {/* Row 4: Country/Location, Provider Type, Prescription Capable */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <SelectField
+                                label="Country / Location Coverage"
+                                value={form.countryLocation}
+                                onChange={(val) => updateField('countryLocation', val)}
+                                options={COUNTRIES.map((c) => ({ value: c, label: c }))}
+                            />
+                            <SelectField
+                                label="Provider Type"
+                                value={form.providerType}
+                                onChange={(val) => updateField('providerType', val)}
+                                options={PROVIDER_TYPES}
+                            />
+                            <RadioGroup
+                                label="Prescription Capable?"
+                                value={form.prescriptionCapable}
+                                onChange={(val) => updateField('prescriptionCapable', val)}
+                                options={[
+                                    { value: 'yes', label: 'Yes' },
+                                    { value: 'no', label: 'No' },
+                                ]}
+                            />
                         </div>
                     </div>
                 </div>
 
-                {/* Location & Coverage Section */}
+                {/* Solutions Summary Section */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <h2 className="text-lg font-heading font-bold text-slate-900 mb-6">
-                        Location & Coverage
+                    <h2 className="text-base font-semibold text-slate-900 mb-5">
+                        Solutions Summary
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* City/Region */}
-                        <SelectField
-                            label="City/Region"
-                            value={form.region}
-                            onChange={(val) => updateField('region', val)}
-                            options={REGIONS.map((r) => ({ value: r, label: r }))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                        {/* Linked Solutions */}
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Linked Solutions
+                            </label>
+                            <div className="h-10 px-3 bg-white border border-slate-200 rounded-lg flex items-center">
+                                <Checkbox
+                                    label="+6"
+                                    checked={form.linkedSolutions}
+                                    onChange={(val) => updateField('linkedSolutions', val)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Affiliate Link */}
+                        <InputWithIcon
+                            label="Affiliate Link"
+                            value={form.affiliateLink}
+                            onChange={(val) => updateField('affiliateLink', val)}
+                            placeholder="https://aff.example.com"
+                            icon={<Link2 className="w-4 h-4" />}
                         />
 
-                        {/* Location */}
+                        {/* Commission Type */}
                         <SelectField
-                            label="Location"
-                            value={form.location}
-                            onChange={(val) => updateField('location', val)}
-                            options={LOCATIONS.map((l) => ({ value: l, label: l }))}
-                            icon={<MapPin className="w-4 h-4" />}
+                            label="Commission Type"
+                            value={form.commissionType}
+                            onChange={(val) => updateField('commissionType', val)}
+                            options={COMMISSION_TYPES}
                         />
 
-                        {/* Coverage Type */}
-                        <SelectField
-                            label="Coverage Type"
-                            value={form.coverageType}
-                            onChange={(val) => updateField('coverageType', val)}
-                            options={COVERAGE_TYPES.map((c) => ({ value: c, label: c }))}
+                        {/* Commission % */}
+                        <InputWithIcon
+                            label="Commission %"
+                            value={form.commissionPercentage}
+                            onChange={(val) => updateField('commissionPercentage', val)}
+                            placeholder="10"
+                            icon={<Percent className="w-4 h-4" />}
                         />
                     </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-4">
+                <div className="flex items-center justify-end gap-3">
                     <Link
                         href="/admin/providers"
-                        className="px-6 py-2.5 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                        className="px-5 py-2.5 text-sm font-medium text-teal-700 border border-teal-600 rounded-lg hover:bg-teal-50 transition-colors"
                     >
                         Cancel
                     </Link>
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="px-8 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white rounded-lg font-medium text-sm transition-colors shadow-sm disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white rounded-lg font-medium text-sm transition-colors shadow-sm disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? (
                             <span className="inline-flex items-center gap-2">
@@ -356,7 +507,7 @@ export default function AddProviderPage() {
                                 Saving...
                             </span>
                         ) : (
-                            'Save'
+                            'Save Provider'
                         )}
                     </button>
                 </div>

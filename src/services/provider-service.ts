@@ -3,7 +3,7 @@
  * Handles all provider-related API calls for the admin dashboard
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+import { api } from '@/lib/api-client';
 
 // ============================================
 // Types
@@ -30,11 +30,16 @@ export interface CreateProviderPayload {
     description?: string;
     logoUrl?: string;
     websiteUrl?: string;
+    businessName?: string;
+    providerType?: string;
+    contactEmail?: string;
+    contactPhone?: string;
     registrationNumber?: string;
     supportedRegions: string[];
     apiEndpoint?: string;
     webhookUrl?: string;
     acceptsBloodTests: boolean;
+    affiliateLink?: string;
     commissionRate?: number;
     subscriptionShare?: number;
 }
@@ -46,12 +51,17 @@ export interface ProviderDetail {
     description: string | null;
     logoUrl: string | null;
     websiteUrl: string | null;
+    businessName: string | null;
+    providerType: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
     status: 'PENDING_APPROVAL' | 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
     registrationNumber: string | null;
     supportedRegions: string[];
     apiEndpoint: string | null;
     webhookUrl: string | null;
     acceptsBloodTests: boolean;
+    affiliateLink: string | null;
     commissionRate: number | null;
     subscriptionShare: number | null;
     createdAt: string;
@@ -66,17 +76,6 @@ interface ApiResponse<T> {
 }
 
 // ============================================
-// Helper
-// ============================================
-
-function getAuthHeaders(token: string): HeadersInit {
-    return {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-    };
-}
-
-// ============================================
 // Service Functions
 // ============================================
 
@@ -84,7 +83,6 @@ function getAuthHeaders(token: string): HeadersInit {
  * Fetch all providers for admin list view
  */
 export async function getProviders(
-    token: string,
     filters?: { status?: string; search?: string }
 ): Promise<ProviderListItem[]> {
     const params = new URLSearchParams();
@@ -96,11 +94,9 @@ export async function getProviders(
     }
 
     const queryString = params.toString();
-    const url = `${API_URL}/providers/admin/list${queryString ? `?${queryString}` : ''}`;
+    const url = `/providers/admin/list${queryString ? `?${queryString}` : ''}`;
 
-    const res = await fetch(url, {
-        headers: getAuthHeaders(token),
-    });
+    const res = await api.get(url);
 
     const data: ApiResponse<ProviderListItem[]> = await res.json();
 
@@ -115,14 +111,9 @@ export async function getProviders(
  * Create a new provider
  */
 export async function createProvider(
-    token: string,
     payload: CreateProviderPayload
 ): Promise<ProviderDetail> {
-    const res = await fetch(`${API_URL}/providers`, {
-        method: 'POST',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.post('/providers', payload);
 
     const data: ApiResponse<ProviderDetail> = await res.json();
 
@@ -137,15 +128,10 @@ export async function createProvider(
  * Update an existing provider
  */
 export async function updateProvider(
-    token: string,
     id: string,
     payload: Partial<CreateProviderPayload> & { status?: string }
 ): Promise<ProviderDetail> {
-    const res = await fetch(`${API_URL}/providers/${id}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(token),
-        body: JSON.stringify(payload),
-    });
+    const res = await api.patch(`/providers/${id}`, payload);
 
     const data: ApiResponse<ProviderDetail> = await res.json();
 
@@ -179,13 +165,8 @@ export interface ProviderWithTreatments extends ProviderDetail {
 /**
  * Fetch a single provider by ID with linked treatments (admin only)
  */
-export async function getProviderById(
-    token: string,
-    id: string
-): Promise<ProviderWithTreatments> {
-    const res = await fetch(`${API_URL}/providers/admin/${id}`, {
-        headers: getAuthHeaders(token),
-    });
+export async function getProviderById(id: string): Promise<ProviderWithTreatments> {
+    const res = await api.get(`/providers/admin/${id}`);
 
     const data: ApiResponse<ProviderWithTreatments> = await res.json();
 
@@ -196,3 +177,109 @@ export async function getProviderById(
     return data.data;
 }
 
+// ============================================
+// Provider Invite Functions
+// ============================================
+
+export interface InviteProviderPayload {
+    email?: string;
+    expiresInDays?: number; // Default 7 days
+    isReusable?: boolean;
+    notes?: string;
+}
+
+export interface InviteProviderResponse {
+    inviteId: string;
+    inviteToken: string;
+    inviteUrl: string;
+    expiresAt: string;
+}
+
+/**
+ * Generate a provider invite link (admin only)
+ */
+export async function generateInviteLink(
+    payload: InviteProviderPayload
+): Promise<InviteProviderResponse> {
+    const res = await api.post('/providers/invite/generate', payload);
+
+    const data: ApiResponse<InviteProviderResponse> = await res.json();
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to generate invite link');
+    }
+
+    return data.data;
+}
+
+// ============================================
+// Public Provider Onboarding (no auth required)
+// ============================================
+
+export interface OnboardingFormData {
+    // Basic Info
+    name: string;
+    businessName: string;
+    providerType: string;
+    description: string;
+    websiteUrl: string;
+    logoUrl?: string;
+
+    // Contact Info
+    contactEmail: string;
+    contactPhone: string;
+
+    // Business Details
+    registrationNumber: string;
+    supportedRegions: string[];
+    acceptsBloodTests: boolean;
+
+    // Optional Integration Details
+    apiEndpoint?: string;
+    webhookUrl?: string;
+
+    // Affiliate Settings
+    affiliateLink?: string;
+    commissionRate?: number;
+    subscriptionShare?: number;
+}
+
+export interface ValidateInviteResponse {
+    valid: boolean;
+    inviteId: string;
+    email: string;
+    expiresAt: string;
+}
+
+/**
+ * Validate an invite token (public, no auth)
+ */
+export async function validateInviteToken(token: string): Promise<ValidateInviteResponse> {
+    const res = await api.get(`/providers/invite/validate?token=${token}`, { skipAuthRefresh: true });
+
+    const data: ApiResponse<ValidateInviteResponse> = await res.json();
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Invalid or expired invite');
+    }
+
+    return data.data;
+}
+
+/**
+ * Submit provider onboarding form (public, no auth)
+ */
+export async function submitOnboardingForm(
+    inviteToken: string,
+    formData: OnboardingFormData
+): Promise<{ success: boolean; providerId: string; message: string }> {
+    const res = await api.post(`/providers/invite/${inviteToken}/submit`, formData, { skipAuthRefresh: true });
+
+    const data: ApiResponse<{ providerId: string; message: string }> = await res.json();
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.error?.message || 'Failed to submit onboarding form');
+    }
+
+    return { success: true, ...data.data };
+}

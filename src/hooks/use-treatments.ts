@@ -34,28 +34,22 @@ export const treatmentKeys = {
 // ============================================
 
 export function useTreatments(filters?: TreatmentFilters) {
-    const accessToken = useAuthStore((s) => s.accessToken);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     return useQuery<TreatmentListItem[], Error>({
         queryKey: treatmentKeys.list(filters ?? {}),
-        queryFn: () => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return getTreatments(accessToken, filters);
-        },
-        enabled: !!accessToken,
+        queryFn: () => getTreatments(filters),
+        enabled: isAuthenticated,
     });
 }
 
 export function useTreatment(id: string) {
-    const accessToken = useAuthStore((s) => s.accessToken);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     return useQuery<TreatmentDetail, Error>({
         queryKey: treatmentKeys.detail(id),
-        queryFn: () => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return getTreatment(accessToken, id);
-        },
-        enabled: !!accessToken && !!id,
+        queryFn: () => getTreatment(id),
+        enabled: isAuthenticated && !!id,
     });
 }
 
@@ -64,14 +58,10 @@ export function useTreatment(id: string) {
 // ============================================
 
 export function useCreateTreatment() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<TreatmentDetail, Error, CreateTreatmentPayload>({
-        mutationFn: (payload) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return createTreatment(accessToken, payload);
-        },
+        mutationFn: (payload) => createTreatment(payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: treatmentKeys.lists() });
         },
@@ -79,7 +69,6 @@ export function useCreateTreatment() {
 }
 
 export function useUpdateTreatment() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -87,10 +76,7 @@ export function useUpdateTreatment() {
         Error,
         { id: string; payload: Partial<CreateTreatmentPayload> }
     >({
-        mutationFn: ({ id, payload }) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return updateTreatment(accessToken, id, payload);
-        },
+        mutationFn: ({ id, payload }) => updateTreatment(id, payload),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: treatmentKeys.lists() });
             queryClient.invalidateQueries({
@@ -101,14 +87,10 @@ export function useUpdateTreatment() {
 }
 
 export function useDeleteTreatment() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<void, Error, string>({
-        mutationFn: (id) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return deleteTreatment(accessToken, id);
-        },
+        mutationFn: (id) => deleteTreatment(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: treatmentKeys.lists() });
         },
@@ -116,7 +98,6 @@ export function useDeleteTreatment() {
 }
 
 export function useCreateMatchingRule() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -124,10 +105,7 @@ export function useCreateMatchingRule() {
         Error,
         { treatmentId: string; payload: CreateMatchingRulePayload }
     >({
-        mutationFn: ({ treatmentId, payload }) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return createMatchingRule(accessToken, treatmentId, payload);
-        },
+        mutationFn: ({ treatmentId, payload }) => createMatchingRule(treatmentId, payload),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
@@ -137,7 +115,6 @@ export function useCreateMatchingRule() {
 }
 
 export function useUpdateMatchingRule() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -145,10 +122,7 @@ export function useUpdateMatchingRule() {
         Error,
         { treatmentId: string; ruleId: string; payload: Partial<CreateMatchingRulePayload> }
     >({
-        mutationFn: ({ treatmentId, ruleId, payload }) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return updateMatchingRule(accessToken, treatmentId, ruleId, payload);
-        },
+        mutationFn: ({ treatmentId, ruleId, payload }) => updateMatchingRule(treatmentId, ruleId, payload),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
@@ -158,14 +132,10 @@ export function useUpdateMatchingRule() {
 }
 
 export function useDeleteMatchingRule() {
-    const accessToken = useAuthStore((s) => s.accessToken);
     const queryClient = useQueryClient();
 
     return useMutation<void, Error, { treatmentId: string; ruleId: string }>({
-        mutationFn: ({ treatmentId, ruleId }) => {
-            if (!accessToken) throw new Error('Not authenticated');
-            return deleteMatchingRule(accessToken, treatmentId, ruleId);
-        },
+        mutationFn: ({ treatmentId, ruleId }) => deleteMatchingRule(treatmentId, ruleId),
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
@@ -173,4 +143,3 @@ export function useDeleteMatchingRule() {
         },
     });
 }
-

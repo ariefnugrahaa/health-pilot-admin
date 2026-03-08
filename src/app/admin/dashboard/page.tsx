@@ -1,241 +1,272 @@
 'use client';
 
-import {
-    Users,
-    UserCheck,
-    AlertTriangle,
-    ChevronRight,
-    MoreHorizontal,
-} from 'lucide-react';
 import Link from 'next/link';
+import {
+  AlertCircle,
+  ArrowUpRight,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  Loader2,
+  Microscope,
+  Pill,
+  UserCheck,
+  Users,
+} from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
 
-// ==========================================
-// Mock Data
-// ==========================================
+type StatCard = {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  iconClassName: string;
+  iconWrapperClassName: string;
+};
 
-const STATS = [
-    {
-        label: 'Total Providers',
-        value: '1,250',
-        icon: Users,
-        iconColor: 'text-blue-600',
-        iconBg: 'bg-blue-50',
-    },
-    {
-        label: 'Active Providers',
-        value: '980',
-        icon: UserCheck,
-        iconColor: 'text-teal-600',
-        iconBg: 'bg-teal-50',
-    },
-    {
-        label: 'Providers with Issues',
-        value: '35',
-        icon: AlertTriangle,
-        iconColor: 'text-amber-600', // Yellow/Orange
-        iconBg: 'bg-amber-50',
-    },
-];
+type DetailRow = {
+  label: string;
+  value: string;
+  href?: string;
+  positive?: boolean;
+  trending?: boolean;
+};
 
-const PROVIDERS = [
-    { name: 'Dr. Emily Roberts', status: 'ACTIVE', location: 'New York, NY' },
-    { name: 'MediCare Clinic', status: 'INCOMPLETE', location: 'Los Angeles, CA' },
-    { name: 'Dr. John Smith', status: 'ACTIVE', location: 'Chicago, IL' },
-    { name: 'Hope Medical Center', status: 'INACTIVE', location: 'Houston, TX' },
-    { name: 'Dr. Sarah Lee', status: 'ACTIVE', location: 'Phoenix, AZ' },
-];
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-US').format(value);
+}
 
-const TREATMENTS = [
-    { name: 'Cardiovascular Health Program', providers: 120 },
-    { name: 'Diabetes Management Pathway', providers: 84 },
-    { name: 'Mental Wellness Support', providers: 31 },
-];
+function OverviewCard({ label, value, icon: Icon, iconClassName, iconWrapperClassName }: StatCard) {
+  return (
+    <div className="rounded-[20px] border border-slate-200 bg-white px-6 py-6 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-500 sm:text-[15px]">{label}</p>
+          <p className="text-3xl font-bold tracking-[-0.04em] text-slate-900 sm:text-[38px]">
+            {value}
+          </p>
+        </div>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconWrapperClassName}`}>
+          <Icon className={`h-6 w-6 ${iconClassName}`} strokeWidth={2.1} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-// ==========================================
-// Components
-// ==========================================
+function DetailPanel({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: DetailRow[];
+}) {
+  return (
+    <section className="space-y-4">
+      <h2 className="text-[28px] font-bold tracking-[-0.04em] text-slate-950">{title}</h2>
+      <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+        {rows.map((row, index) => {
+          const content = (
+            <div
+              className={`flex items-center justify-between gap-4 px-6 py-5 ${
+                index < rows.length - 1 ? 'border-b border-slate-200' : ''
+              }`}
+            >
+              <span className="text-[15px] font-medium text-slate-600 sm:text-[16px]">
+                {row.label}
+              </span>
+              <span
+                className={`flex items-center gap-2 text-lg font-bold tracking-[-0.03em] ${
+                  row.positive ? 'text-emerald-500' : 'text-slate-900'
+                }`}
+              >
+                {row.value}
+                {row.trending ? <ArrowUpRight className="h-4.5 w-4.5" strokeWidth={2.2} /> : null}
+                {row.href ? <ChevronRight className="h-4.5 w-4.5 text-slate-400" strokeWidth={2.2} /> : null}
+              </span>
+            </div>
+          );
 
-function StatusPill({ status }: { status: string }) {
-    if (status === 'ACTIVE') {
-        return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                ACTIVE
-            </span>
-        );
-    }
-    if (status === 'INCOMPLETE') {
-        return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-white border border-gray-800">
-                INCOMPLETE
-            </span>
-        );
-    }
-    return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white text-slate-500 border border-slate-200">
-            INACTIVE
-        </span>
-    );
+          if (!row.href) {
+            return <div key={row.label}>{content}</div>;
+          }
+
+          return (
+            <Link
+              key={row.label}
+              href={row.href}
+              className="block transition-colors hover:bg-slate-50/80"
+            >
+              {content}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function DashboardLoadingState() {
+  return (
+    <div className="rounded-[20px] border border-slate-200 bg-white px-6 py-8 text-slate-500 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span className="text-sm font-medium">Loading dashboard metrics...</span>
+      </div>
+    </div>
+  );
+}
+
+function DashboardErrorState({ message }: { message: string }) {
+  return (
+    <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-6 py-5 text-rose-700">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">Dashboard data could not be loaded</p>
+          <p className="text-sm">{message}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
-    const { user } = useAuthStore();
+  const { user } = useAuthStore();
+  const firstName = user?.firstName?.trim() || 'Admin';
+  const { data, isLoading, error } = useAdminDashboard();
 
-    return (
-        <div className="space-y-8 animate-fade-in pb-10">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-heading font-bold text-slate-900">
-                    Welcome back, {user?.firstName || 'Admin'}
-                </h1>
-                <p className="text-slate-500 mt-2 text-base">
-                    Manage providers and treatment pathways from your dashboard.
-                </p>
-            </div>
+  const overviewStats: StatCard[] = [
+    {
+      label: 'Total Users',
+      value: formatNumber(data?.overview.totalUsers ?? 0),
+      icon: Users,
+      iconClassName: 'text-[#0ea5a4]',
+      iconWrapperClassName: 'bg-[#e9fbfa]',
+    },
+    {
+      label: 'Active Providers',
+      value: formatNumber(data?.overview.activeProviders ?? 0),
+      icon: UserCheck,
+      iconClassName: 'text-[#0f7aa7]',
+      iconWrapperClassName: 'bg-[#e9f6fc]',
+    },
+    {
+      label: 'Active Treatments',
+      value: formatNumber(data?.overview.activeTreatments ?? 0),
+      icon: FileText,
+      iconClassName: 'text-[#4f33d1]',
+      iconWrapperClassName: 'bg-[#efebff]',
+    },
+    {
+      label: 'Active Supplements',
+      value: formatNumber(data?.overview.activeSupplements ?? 0),
+      icon: Pill,
+      iconClassName: 'text-[#a2870a]',
+      iconWrapperClassName: 'bg-[#faf5e8]',
+    },
+    {
+      label: 'Active Labs',
+      value: formatNumber(data?.overview.activeLabs ?? 0),
+      icon: Microscope,
+      iconClassName: 'text-[#b42374]',
+      iconWrapperClassName: 'bg-[#fbe8f2]',
+    },
+    {
+      label: 'Orders Requiring Action',
+      value: formatNumber(data?.overview.ordersRequiringAction ?? 0),
+      icon: ClipboardCheck,
+      iconClassName: 'text-[#b86b09]',
+      iconWrapperClassName: 'bg-[#fdf0e5]',
+    },
+  ];
 
-            {/* Overview Section */}
-            <div>
-                <h2 className="text-xl font-heading font-bold text-slate-900 mb-4">Overview</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {STATS.map((stat) => (
-                        <div
-                            key={stat.label}
-                            className="bg-white rounded-xl border border-slate-200 p-6 flex items-start justify-between shadow-sm"
-                        >
-                            <div>
-                                <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                                <p className="text-3xl font-heading font-bold text-slate-900 mt-2">
-                                    {stat.value}
-                                </p>
-                            </div>
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stat.iconBg}`}>
-                                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+  const engineRows: DetailRow[] = [
+    {
+      label: 'Treatments Configured in Engine',
+      value: formatNumber(data?.recommendationEngine.treatmentsConfigured ?? 0),
+    },
+    {
+      label: 'Supplements Configured in Engine',
+      value: formatNumber(data?.recommendationEngine.supplementsConfigured ?? 0),
+    },
+    {
+      label: 'Matching Conflicts Detected',
+      value: formatNumber(data?.recommendationEngine.matchingConflictsDetected ?? 0),
+      href: '/admin/treatments',
+    },
+  ];
 
-            {/* Providers Section */}
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-heading font-bold text-slate-900">Providers</h2>
-                        <p className="text-sm text-slate-500">Recent Providers</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                            Manage Providers
-                        </button>
-                        <button className="text-teal-600 hover:text-teal-700 font-medium text-sm">
-                            View all providers
-                        </button>
-                    </div>
-                </div>
+  const bookingRows: DetailRow[] = [
+    {
+      label: 'Bookings This Week',
+      value: formatNumber(data?.bookingsDiagnostics.bookingsThisWeek ?? 0),
+    },
+    {
+      label: 'Completion Rate',
+      value: `${data?.bookingsDiagnostics.completionRate ?? 0}%`,
+      positive: (data?.bookingsDiagnostics.completionRate ?? 0) > 0,
+      trending: (data?.bookingsDiagnostics.completionRate ?? 0) > 0,
+    },
+    {
+      label: 'Result Awaiting Review',
+      value: formatNumber(data?.bookingsDiagnostics.resultsAwaitingReview ?? 0),
+    },
+  ];
 
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-3 font-semibold text-slate-500 uppercase tracking-wider text-xs">
-                                        Provider Name
-                                    </th>
-                                    <th className="px-6 py-3 font-semibold text-slate-500 uppercase tracking-wider text-xs">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 font-semibold text-slate-500 uppercase tracking-wider text-xs text-right">
-                                        Location/Coverage
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {PROVIDERS.map((provider) => (
-                                    <tr key={provider.name} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">
-                                            {provider.name}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <StatusPill status={provider.status} />
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-500 text-right">
-                                            {provider.location}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+  const operationalRows: DetailRow[] = [
+    {
+      label: 'Providers Incomplete',
+      value: formatNumber(data?.operationalAttention.providersIncomplete ?? 0),
+      href: '/admin/providers',
+    },
+    {
+      label: 'Labs without Schedule',
+      value: formatNumber(data?.operationalAttention.labsWithoutSchedule ?? 0),
+      href: '/admin/labs',
+    },
+    {
+      label: 'Orders Overdue',
+      value: formatNumber(data?.operationalAttention.ordersOverdue ?? 0),
+      href: '/admin/blood-test-orders',
+    },
+  ];
 
-            {/* Treatment Pathways Section */}
-            <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-heading font-bold text-slate-900">Treatment Pathways</h2>
-                        <p className="text-sm text-slate-500">Recent Treatment Pathways</p>
-                    </div>
-                    <button className="text-teal-600 hover:text-teal-700 font-medium text-sm">
-                        View all pathways
-                    </button>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-3 font-semibold text-slate-500 uppercase tracking-wider text-xs">
-                                    Treatment Name
-                                </th>
-                                <th className="px-6 py-3 font-semibold text-slate-500 uppercase tracking-wider text-xs text-right">
-                                    Linked Providers
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {TREATMENTS.map((treatment) => (
-                                <tr key={treatment.name} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-slate-900">
-                                        {treatment.name}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-500 text-right">
-                                        {treatment.providers} providers
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Action Required Section */}
-            <div>
-                <h2 className="text-xl font-heading font-bold text-slate-900 mb-4">Action Required</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Card 1 */}
-                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                        <h3 className="font-bold text-slate-900 mb-2">Providers with issues</h3>
-                        <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-                            There are 35 providers requiring your attention due to incomplete setup or flagged profiles.
-                        </p>
-                        <button className="text-teal-600 hover:text-teal-700 font-medium text-sm">
-                            Review Issues
-                        </button>
-                    </div>
-
-                    {/* Card 2 */}
-                    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                        <h3 className="font-bold text-slate-900 mb-2">Matching eligibility status</h3>
-                        <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-                            Review and update eligibility criteria for various treatment pathways.
-                        </p>
-                        <button className="text-teal-600 hover:text-teal-700 font-medium text-sm">
-                            Review eligibility
-                        </button>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="animate-fade-in pb-10">
+      <section className="max-w-[1400px] space-y-9">
+        <div className="space-y-3 pt-2">
+          <h1 className="text-3xl font-bold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+            Welcome back, {firstName}
+          </h1>
+          <p className="max-w-4xl text-base leading-7 text-slate-500 sm:text-lg">
+            A real-time overview of platform performance, engine activity, and operational risk.
+          </p>
         </div>
-    );
+
+        {error ? <DashboardErrorState message={error.message} /> : null}
+
+        <div className="border-t border-slate-200 pt-10">
+          <section className="space-y-6">
+            <h2 className="text-[28px] font-bold tracking-[-0.04em] text-slate-950">Overview</h2>
+            {isLoading && !data ? (
+              <DashboardLoadingState />
+            ) : (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {overviewStats.map((stat) => (
+                  <OverviewCard key={stat.label} {...stat} />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <section className="grid grid-cols-1 gap-6 pt-6 xl:grid-cols-3">
+          <DetailPanel title="Recommendation Engine" rows={engineRows} />
+          <DetailPanel title="Bookings & Diagnostics" rows={bookingRows} />
+          <DetailPanel title="Operational Attention" rows={operationalRows} />
+        </section>
+      </section>
+    </div>
+  );
 }

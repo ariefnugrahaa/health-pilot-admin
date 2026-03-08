@@ -3,22 +3,17 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-    LayoutDashboard,
+    Home,
     Users,
-    Building2,
-    ClipboardList,
-    FlaskConical,
-    Activity,
     Settings,
     Shield,
     ChevronLeft,
-    LogOut,
-    Bell,
-    BarChart3,
+    Link as LinkIcon,
+    Microscope,
+    ClipboardSignature,
+    HelpCircle,
     FileText,
-    Heart,
 } from 'lucide-react';
-import { useAuthStore } from '@/stores/auth-store';
 import type { AdminUser } from '@/core/domain/types';
 
 interface SidebarProps {
@@ -32,71 +27,18 @@ interface SidebarProps {
 interface NavItem {
     label: string;
     href: string;
-    icon: React.ReactNode;
-    badge?: number;
+    icon: React.ElementType;
 }
 
 const NAV_ITEMS: NavItem[] = [
-    {
-        label: 'Dashboard',
-        href: '/admin/dashboard',
-        icon: <LayoutDashboard className="w-5 h-5" />,
-    },
-    {
-        label: 'Users',
-        href: '/admin/users',
-        icon: <Users className="w-5 h-5" />,
-        badge: 3,
-    },
-    {
-        label: 'Providers',
-        href: '/admin/providers',
-        icon: <Building2 className="w-5 h-5" />,
-    },
-    {
-        label: 'Treatments',
-        href: '/admin/treatments',
-        icon: <Heart className="w-5 h-5" />,
-    },
-    {
-        label: 'Health Intakes',
-        href: '/admin/intakes',
-        icon: <ClipboardList className="w-5 h-5" />,
-    },
-    {
-        label: 'Blood Tests',
-        href: '/admin/blood-tests',
-        icon: <FlaskConical className="w-5 h-5" />,
-    },
-    {
-        label: 'Analytics',
-        href: '/admin/analytics',
-        icon: <BarChart3 className="w-5 h-5" />,
-    },
-    {
-        label: 'Activity Log',
-        href: '/admin/activity',
-        icon: <Activity className="w-5 h-5" />,
-    },
-    {
-        label: 'Reports',
-        href: '/admin/reports',
-        icon: <FileText className="w-5 h-5" />,
-    },
-];
-
-const BOTTOM_NAV_ITEMS: NavItem[] = [
-    {
-        label: 'Notifications',
-        href: '/admin/notifications',
-        icon: <Bell className="w-5 h-5" />,
-        badge: 5,
-    },
-    {
-        label: 'Settings',
-        href: '/admin/settings',
-        icon: <Settings className="w-5 h-5" />,
-    },
+    { label: 'Dashboard', href: '/admin/dashboard', icon: Home },
+    { label: 'Providers', href: '/admin/providers', icon: Users },
+    { label: 'Supplements', href: '/admin/supplements', icon: LinkIcon },
+    { label: 'Treatments', href: '/admin/treatments', icon: FileText },
+    { label: 'Labs', href: '/admin/labs', icon: Microscope },
+    { label: 'Blood Test Orders', href: '/admin/blood-test-orders', icon: ClipboardSignature },
+    { label: 'Intake', href: '/admin/intake', icon: HelpCircle },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export function AdminSidebar({
@@ -107,18 +49,30 @@ export function AdminSidebar({
     user,
 }: SidebarProps) {
     const pathname = usePathname();
-    const { logout } = useAuthStore();
 
     const isActive = (href: string): boolean => {
         return pathname === href || pathname.startsWith(href + '/');
     };
 
-    const NAV_ITEMS = [
-        { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-        { label: 'Providers', href: '/admin/providers', icon: Users },
-        { label: 'Treatments', href: '/admin/treatments', icon: ClipboardList },
-        { label: 'Settings', href: '/admin/settings', icon: Settings },
-    ];
+    const renderNavItem = (item: NavItem, isMobile = false) => {
+        const active = isActive(item.href);
+
+        return (
+            <Link
+                key={item.href}
+                href={item.href}
+                onClick={isMobile ? onMobileClose : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
+                    ? 'bg-teal-50 text-teal-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                title={collapsed && !isMobile ? item.label : undefined}
+            >
+                <item.icon className={`w-5 h-5 ${active ? 'text-teal-600' : 'text-slate-400'}`} />
+                {(!collapsed || isMobile) && <span>{item.label}</span>}
+            </Link>
+        );
+    };
 
     return (
         <>
@@ -140,23 +94,7 @@ export function AdminSidebar({
 
                 {/* Navigation */}
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-                    {NAV_ITEMS.map((item) => {
-                        const active = isActive(item.href);
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
-                                        ? 'bg-teal-50 text-teal-700'
-                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                    }`}
-                                title={collapsed ? item.label : undefined}
-                            >
-                                <item.icon className={`w-5 h-5 ${active ? 'text-teal-600' : 'text-slate-400'}`} />
-                                {!collapsed && <span>{item.label}</span>}
-                            </Link>
-                        );
-                    })}
+                    {NAV_ITEMS.map((item) => renderNavItem(item))}
                 </nav>
 
                 {/* User Profile */}
@@ -182,7 +120,6 @@ export function AdminSidebar({
 
             {/* Mobile Sidebar */}
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transition-transform duration-300 lg:hidden ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                {/* Same content as desktop but simplified structure for mobile */}
                 <div className="h-full flex flex-col">
                     <div className="h-16 flex items-center px-6 border-b border-gray-100 justify-between">
                         <div className="flex items-center gap-3 text-teal-600">
@@ -193,24 +130,8 @@ export function AdminSidebar({
                             <ChevronLeft className="w-6 h-6" />
                         </button>
                     </div>
-                    <nav className="flex-1 py-6 px-3 space-y-1">
-                        {NAV_ITEMS.map((item) => {
-                            const active = isActive(item.href);
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={onMobileClose}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active
-                                            ? 'bg-teal-50 text-teal-700'
-                                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                                        }`}
-                                >
-                                    <item.icon className={`w-5 h-5 ${active ? 'text-teal-600' : 'text-slate-400'}`} />
-                                    <span>{item.label}</span>
-                                </Link>
-                            );
-                        })}
+                    <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+                        {NAV_ITEMS.map((item) => renderNavItem(item, true))}
                     </nav>
                     <div className="p-4 border-t border-gray-100">
                         <div className="flex items-center gap-3">
@@ -228,6 +149,3 @@ export function AdminSidebar({
         </>
     );
 }
-
-// Remove the NavLink component since we inlined it for simplicity/customization
-function NavLink() { return null; }
