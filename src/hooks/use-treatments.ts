@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/lib/toast';
 import {
     getTreatments,
     getTreatment,
@@ -64,6 +65,10 @@ export function useCreateTreatment() {
         mutationFn: (payload) => createTreatment(payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: treatmentKeys.lists() });
+            toast.created('Treatment');
+        },
+        onError: (error) => {
+            toast.createError('treatment', error.message);
         },
     });
 }
@@ -82,6 +87,10 @@ export function useUpdateTreatment() {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.id),
             });
+            toast.updated('Treatment');
+        },
+        onError: (error) => {
+            toast.updateError('treatment', error.message);
         },
     });
 }
@@ -93,6 +102,10 @@ export function useDeleteTreatment() {
         mutationFn: (id) => deleteTreatment(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: treatmentKeys.lists() });
+            toast.deleted('Treatment');
+        },
+        onError: (error) => {
+            toast.deleteError('treatment', error.message);
         },
     });
 }
@@ -110,6 +123,10 @@ export function useCreateMatchingRule() {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
             });
+            toast.success('Matching rule created');
+        },
+        onError: (error) => {
+            toast.error('Failed to create matching rule', { description: error.message });
         },
     });
 }
@@ -127,6 +144,10 @@ export function useUpdateMatchingRule() {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
             });
+            toast.success('Matching rule updated');
+        },
+        onError: (error) => {
+            toast.error('Failed to update matching rule', { description: error.message });
         },
     });
 }
@@ -140,6 +161,10 @@ export function useDeleteMatchingRule() {
             queryClient.invalidateQueries({
                 queryKey: treatmentKeys.detail(variables.treatmentId),
             });
+            toast.success('Matching rule deleted');
+        },
+        onError: (error) => {
+            toast.error('Failed to delete matching rule', { description: error.message });
         },
     });
 }

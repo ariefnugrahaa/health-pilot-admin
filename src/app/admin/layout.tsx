@@ -6,6 +6,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { AdminSidebar } from '@/components/admin/sidebar';
 import { AdminHeader } from '@/components/admin/header';
 import { QueryProvider } from '@/providers/query-provider';
+import { ConfirmDialogProvider } from '@/components/shared';
+import { Toaster } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -80,6 +82,21 @@ export default function AdminLayout({
                     onClick={() => setMobileSidebarOpen(false)}
                 />
             )}
+
+            {/* Toast notifications */}
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    style: {
+                        background: '#fff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                    },
+                }}
+            />
+
+            {/* Global confirmation dialog */}
+            <ConfirmDialogProvider />
         </div>
     );
 }

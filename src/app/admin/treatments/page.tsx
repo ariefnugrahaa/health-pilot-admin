@@ -2,14 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import {
-    Search,
-    Plus,
-    Pencil,
-    Trash2,
-    ChevronDown,
-    Power,
-} from 'lucide-react';
+import { Plus, Pencil, Power } from 'lucide-react';
 import { useTreatments, useDeleteTreatment } from '@/hooks/use-treatments';
 import {
     Table,
@@ -19,38 +12,25 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-
-// ==========================================
-// Status Helper
-// ==========================================
-
-function StatusPill({ isActive }: { isActive: boolean }) {
-    if (isActive) {
-        return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                ACTIVE
-            </span>
-        );
-    }
-    return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-            INACTIVE
-        </span>
-    );
-}
-
-// ==========================================
-// Main Component
-// ==========================================
+import {
+    PageHeader,
+    SearchInput,
+    FilterDropdown,
+    StatusPill,
+    LoadingState,
+    EmptyState,
+    ErrorState,
+    useConfirm,
+    getActiveStatusVariant,
+    STATUS_FILTER_OPTIONS,
+} from '@/components/shared';
 
 export default function TreatmentsPage() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+    const confirm = useConfirm();
 
-    // React Query
-    const { data: treatments = [], isLoading, error } = useTreatments({
+    const { data: treatments = [], isLoading, error, refetch } = useTreatments({
         search: search || undefined,
         status: statusFilter,
     });
@@ -58,99 +38,55 @@ export default function TreatmentsPage() {
     const deleteMutation = useDeleteTreatment();
 
     const handleDelete = async (id: string, name: string) => {
-        if (confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
+        const confirmed = await confirm({
+            title: 'Delete Treatment',
+            description: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            variant: 'destructive',
+        });
+        if (confirmed) {
             deleteMutation.mutate(id);
         }
     };
 
     return (
         <div className="space-y-6 animate-fade-in pb-10">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-heading font-bold text-slate-900">
-                        Treatments
-                    </h1>
-                    <p className="text-slate-500 mt-1 text-base">
-                        Manage treatment pathways used in health assessments.
-                    </p>
-                </div>
-                <Link
-                    href="/admin/treatments/new"
-                    className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add New Treatment
-                </Link>
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center justify-between gap-4">
-                {/* Search */}
-                <div className="relative w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input
-                        placeholder="Search..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10 bg-white border-slate-200"
-                    />
-                </div>
-
-                {/* Status Filter */}
-                <div className="relative">
-                    <button
-                        onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                        className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            <PageHeader
+                title="Treatments"
+                subtitle="Manage treatment pathways used in health assessments."
+                action={
+                    <Link
+                        href="/admin/treatments/new"
+                        className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
                     >
-                        Status: {statusFilter === 'All' ? 'All' : statusFilter === 'ACTIVE' ? 'Active' : 'Inactive'}
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                    </button>
-                    {showStatusDropdown && (
-                        <>
-                            <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setShowStatusDropdown(false)}
-                            />
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1">
-                                {['All', 'ACTIVE', 'INACTIVE'].map((opt) => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => {
-                                            setStatusFilter(opt);
-                                            setShowStatusDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${statusFilter === opt
-                                                ? 'text-teal-600 font-medium bg-teal-50'
-                                                : 'text-slate-700'
-                                            }`}
-                                    >
-                                        {opt === 'All' ? 'All' : opt === 'ACTIVE' ? 'Active' : 'Inactive'}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
+                        <Plus className="w-4 h-4" />
+                        Add New Treatment
+                    </Link>
+                }
+            />
+
+            <div className="flex items-center justify-between gap-4">
+                <SearchInput
+                    value={search}
+                    onChange={setSearch}
+                    size="md"
+                    className="w-80"
+                />
+                <FilterDropdown
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v)}
+                    options={STATUS_FILTER_OPTIONS}
+                    label="Status"
+                />
             </div>
 
-            {/* Table */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 {isLoading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="flex flex-col items-center gap-3">
-                            <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-slate-500 text-sm">Loading treatments...</p>
-                        </div>
-                    </div>
+                    <LoadingState message="Loading treatments..." />
                 ) : error ? (
-                    <div className="flex items-center justify-center py-20 text-red-500">
-                        Failed to load treatments
-                    </div>
+                    <ErrorState message="Failed to load treatments" onRetry={() => refetch()} />
                 ) : treatments.length === 0 ? (
-                    <div className="flex items-center justify-center py-20 text-slate-500">
-                        No treatments found
-                    </div>
+                    <EmptyState message="No treatments found" />
                 ) : (
                     <Table>
                         <TableHeader>
@@ -181,7 +117,7 @@ export default function TreatmentsPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="px-4 py-4">
-                                        <StatusPill isActive={treatment.isActive} />
+                                        <StatusPill variant={getActiveStatusVariant(treatment.isActive)} />
                                     </TableCell>
                                     <TableCell className="px-4 py-4 text-slate-600 text-sm">
                                         {treatment.provider.name}

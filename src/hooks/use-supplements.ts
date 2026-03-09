@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/lib/toast';
 import {
   getSupplements,
   getSupplementById,
@@ -68,6 +69,10 @@ export function useCreateSupplement() {
     mutationFn: (payload) => createSupplement(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: supplementKeys.lists() });
+      toast.created('Supplement');
+    },
+    onError: (error) => {
+      toast.createError('supplement', error.message);
     },
   });
 }
@@ -89,6 +94,10 @@ export function useUpdateSupplement() {
       queryClient.invalidateQueries({
         queryKey: supplementKeys.detail(variables.id),
       });
+      toast.updated('Supplement');
+    },
+    onError: (error) => {
+      toast.updateError('supplement', error.message);
     },
   });
 }
@@ -103,6 +112,10 @@ export function useDeleteSupplement() {
     mutationFn: (id) => deleteSupplement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: supplementKeys.lists() });
+      toast.deleted('Supplement');
+    },
+    onError: (error) => {
+      toast.deleteError('supplement', error.message);
     },
   });
 }
@@ -119,8 +132,12 @@ export function useToggleSupplementStatus() {
     { id: string; isActive: boolean }
   >({
     mutationFn: ({ id, isActive }) => updateSupplement(id, { isActive }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: supplementKeys.lists() });
+      toast.success(variables.isActive ? 'Supplement activated' : 'Supplement deactivated');
+    },
+    onError: (error) => {
+      toast.error('Failed to update supplement status', { description: error.message });
     },
   });
 }

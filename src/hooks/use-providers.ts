@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/lib/toast';
 import {
     getProviders,
     getProviderById,
@@ -72,8 +73,11 @@ export function useCreateProvider() {
     return useMutation<ProviderDetail, Error, CreateProviderPayload>({
         mutationFn: (payload) => createProvider(payload),
         onSuccess: () => {
-            // Invalidate the list so it refetches with the new provider
             queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
+            toast.created('Provider');
+        },
+        onError: (error) => {
+            toast.createError('provider', error.message);
         },
     });
 }
@@ -96,6 +100,10 @@ export function useUpdateProvider() {
             queryClient.invalidateQueries({
                 queryKey: providerKeys.detail(variables.id),
             });
+            toast.updated('Provider');
+        },
+        onError: (error) => {
+            toast.updateError('provider', error.message);
         },
     });
 }
@@ -106,5 +114,11 @@ export function useUpdateProvider() {
 export function useGenerateInviteLink() {
     return useMutation<InviteProviderResponse, Error, InviteProviderPayload>({
         mutationFn: (payload) => generateInviteLink(payload),
+        onSuccess: () => {
+            toast.success('Invite link generated');
+        },
+        onError: (error) => {
+            toast.error('Failed to generate invite link', { description: error.message });
+        },
     });
 }

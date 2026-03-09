@@ -2,13 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import {
-  Search,
-  Plus,
-  Pencil,
-  ChevronDown,
-  Power,
-} from 'lucide-react';
+import { Plus, Pencil, Power } from 'lucide-react';
 import { useSupplements, useToggleSupplementStatus } from '@/hooks/use-supplements';
 import { getCategoryLabel, type SupplementCategory } from '@/services/supplement-service';
 import {
@@ -19,41 +13,23 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
+import {
+  PageHeader,
+  SearchInput,
+  FilterDropdown,
+  StatusPill,
+  LoadingState,
+  EmptyState,
+  ErrorState,
+  useConfirm,
+  getActiveStatusVariant,
+  STATUS_FILTER_OPTIONS,
+} from '@/components/shared';
+import { cn } from '@/lib/utils';
 
 // ==========================================
-// Status Display Helpers
+// Category Pill (specific to supplements)
 // ==========================================
-
-function StatusPill({ isActive }: { isActive: boolean }) {
-  if (isActive) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        ACTIVE
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-      INACTIVE
-    </span>
-  );
-}
-
-function MatchingPill({ included }: { included: boolean }) {
-  if (included) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border border-slate-900 text-slate-900">
-        Included
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-400 border border-slate-200">
-      Not Included
-    </span>
-  );
-}
 
 function CategoryPill({ category }: { category: SupplementCategory }) {
   const colorMap: Record<string, string> = {
@@ -72,22 +48,11 @@ function CategoryPill({ category }: { category: SupplementCategory }) {
   const colorClass = colorMap[category] || colorMap.OTHER;
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium', colorClass)}>
       {getCategoryLabel(category)}
     </span>
   );
 }
-
-// ==========================================
-// Status Filter Options
-// ==========================================
-
-const STATUS_OPTIONS = ['All', 'ACTIVE', 'INACTIVE'];
-const STATUS_LABELS: Record<string, string> = {
-  All: 'All',
-  ACTIVE: 'Active',
-  INACTIVE: 'Inactive',
-};
 
 // ==========================================
 // Main Page Component
@@ -96,9 +61,8 @@ const STATUS_LABELS: Record<string, string> = {
 export default function SupplementsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const confirm = useConfirm();
 
-  // React Query
   const { data: supplements = [], isLoading, error, refetch } = useSupplements({
     status: statusFilter,
     search: search || undefined,
@@ -108,7 +72,13 @@ export default function SupplementsPage() {
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     const action = currentStatus ? 'deactivate' : 'activate';
-    if (confirm(`Are you sure you want to ${action} this supplement?`)) {
+    const confirmed = await confirm({
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Supplement`,
+      description: `Are you sure you want to ${action} this supplement?`,
+      confirmText: action.charAt(0).toUpperCase() + action.slice(1),
+      variant: currentStatus ? 'destructive' : 'default',
+    });
+    if (confirmed) {
       toggleMutation.mutate({ id, isActive: !currentStatus });
     }
   };
@@ -117,108 +87,50 @@ export default function SupplementsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-heading font-bold text-slate-900">
-            Supplements
-          </h1>
-          <p className="text-slate-500 mt-1 text-base">
-            Manage over-the-counter supplements shown in user recommendations.
-          </p>
-        </div>
-        <Link
-          href="/admin/supplements/new"
-          className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add New Supplement
-        </Link>
-      </div>
-
-      {/* Filters Row */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Search */}
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-white border-slate-200"
-          />
-        </div>
-
-        {/* Status Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      <PageHeader
+        title="Supplements"
+        subtitle="Manage over-the-counter supplements shown in user recommendations."
+        count={activeCount}
+        countLabel="Active"
+        action={
+          <Link
+            href="/admin/supplements/new"
+            className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
           >
-            Status: {STATUS_LABELS[statusFilter]}
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </button>
-          {showStatusDropdown && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowStatusDropdown(false)}
-              />
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1">
-                {STATUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => {
-                      setStatusFilter(opt);
-                      setShowStatusDropdown(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors ${
-                      statusFilter === opt
-                        ? 'text-teal-600 font-medium bg-teal-50'
-                        : 'text-slate-700'
-                    }`}
-                  >
-                    {STATUS_LABELS[opt]}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+            <Plus className="w-4 h-4" />
+            Add New Supplement
+          </Link>
+        }
+      />
+
+      <div className="flex items-center justify-between gap-4">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          size="sm"
+        />
+        <FilterDropdown
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v)}
+          options={STATUS_FILTER_OPTIONS}
+          label="Status"
+        />
       </div>
 
-      {/* Supplements Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-slate-500 text-sm">Loading supplements...</p>
-            </div>
-          </div>
+          <LoadingState message="Loading supplements..." />
         ) : error ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <p className="text-red-500 font-medium">{error.message}</p>
-              <button
-                onClick={() => refetch()}
-                className="mt-3 text-teal-600 hover:underline text-sm"
-              >
-                Try again
-              </button>
-            </div>
-          </div>
+          <ErrorState message={error.message} onRetry={() => refetch()} />
         ) : supplements.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <p className="text-slate-500 font-medium">No supplements found</p>
-              <p className="text-slate-400 text-sm mt-1">
-                {search || statusFilter !== 'All'
-                  ? 'Try adjusting your filters'
-                  : 'Add your first supplement to get started'}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            message="No supplements found"
+            description={
+              search || statusFilter !== 'All'
+                ? 'Try adjusting your filters'
+                : 'Add your first supplement to get started'
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -252,7 +164,7 @@ export default function SupplementsPage() {
                     </p>
                   </TableCell>
                   <TableCell className="px-4 py-4">
-                    <StatusPill isActive={supplement.isActive} />
+                    <StatusPill variant={getActiveStatusVariant(supplement.isActive)} />
                   </TableCell>
                   <TableCell className="px-4 py-4">
                     <CategoryPill category={supplement.category} />
@@ -261,7 +173,7 @@ export default function SupplementsPage() {
                     {supplement.linkedRetailers} Retailer{supplement.linkedRetailers !== 1 ? 's' : ''}
                   </TableCell>
                   <TableCell className="px-4 py-4">
-                    <MatchingPill included={supplement.isActive} />
+                    <StatusPill variant={supplement.isActive ? 'included' : 'not_included'} />
                   </TableCell>
                   <TableCell className="px-4 py-4">
                     <div className="flex items-center justify-end gap-2">

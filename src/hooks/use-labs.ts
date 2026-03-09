@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UseMutationOptions } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth-store';
+import { toast } from '@/lib/toast';
 import {
   fetchLabs,
   fetchLab,
@@ -10,8 +12,6 @@ import {
   type CreateLabPayload,
   type UpdateLabPayload,
 } from '@/services/lab-service';
-
-import type { UseMutationOptions } from '@tanstack/react-query';
 
 // ============================================
 // Query Keys
@@ -63,6 +63,10 @@ export function useCreateLab(options?: UseMutationOptions<Lab, Error, CreateLabP
     mutationFn: (payload: CreateLabPayload) => createLab(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: labKeys.all });
+      toast.created('Lab');
+    },
+    onError: (error) => {
+      toast.createError('lab', error.message);
     },
     ...options,
   });
@@ -80,6 +84,10 @@ export function useUpdateLab(options?: UseMutationOptions<Lab, Error, { id: stri
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: labKeys.all });
       queryClient.invalidateQueries({ queryKey: labKeys.detail(variables.id) });
+      toast.updated('Lab');
+    },
+    onError: (error) => {
+      toast.updateError('lab', error.message);
     },
     ...options,
   });
@@ -94,8 +102,12 @@ export function useToggleLabStatus() {
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       updateLab(id, { isActive }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: labKeys.all });
+      toast.success(variables.isActive ? 'Lab activated' : 'Lab deactivated');
+    },
+    onError: (error) => {
+      toast.error('Failed to update lab status', { description: error.message });
     },
   });
 }
@@ -110,6 +122,10 @@ export function useDeleteLab() {
     mutationFn: (id: string) => deleteLab(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: labKeys.all });
+      toast.deleted('Lab');
+    },
+    onError: (error) => {
+      toast.deleteError('lab', error.message);
     },
   });
 }
