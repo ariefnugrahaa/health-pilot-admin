@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Globe, Mail, Phone, Building2, Stethoscope, Link2, Percent } from 'lucide-react';
+import { ArrowLeft, Globe, Mail, Phone, Building2, Stethoscope, Link2, Percent, MapPin, CheckSquare } from 'lucide-react';
 import { createProvider } from '@/services/provider-service';
+import { PROVIDER_CATEGORY_OPTIONS, type ProviderCategory } from '@/lib/provider-categories';
 
 // ==========================================
 // Constants
@@ -50,7 +51,7 @@ interface ProviderFormState {
     prescriptionCapable: string; // 'yes' | 'no'
 
     // Solutions Summary
-    linkedSolutions: boolean;
+    category: ProviderCategory | '';
     affiliateLink: string;
     commissionType: string;
     commissionPercentage: string;
@@ -67,13 +68,15 @@ function SelectField({
     options,
     placeholder,
     required = false,
+    icon,
 }: {
     label: string;
     value: string;
     onChange: (val: string) => void;
-    options: { value: string; label: string }[];
+    options: ReadonlyArray<{ value: string; label: string }>;
     placeholder?: string;
     required?: boolean;
+    icon?: React.ReactNode;
 }) {
     return (
         <div className="space-y-2">
@@ -81,10 +84,15 @@ function SelectField({
                 {label} {required && <span className="text-red-500">*</span>}
             </label>
             <div className="relative">
+                {icon && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        {icon}
+                    </div>
+                )}
                 <select
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                    className={`w-full h-10 ${icon ? 'pl-10' : 'px-3'} py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors`}
                 >
                     {placeholder && (
                         <option value="" disabled>
@@ -201,49 +209,6 @@ function RadioGroup({
     );
 }
 
-// ==========================================
-// Checkbox Component
-// ==========================================
-
-function Checkbox({
-    label,
-    checked,
-    onChange,
-}: {
-    label: string;
-    checked: boolean;
-    onChange: (val: boolean) => void;
-}) {
-    return (
-        <label className="flex items-center gap-3 cursor-pointer">
-            <div
-                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-colors ${checked
-                    ? 'border-teal-600 bg-teal-600'
-                    : 'border-slate-300 bg-white'
-                    }`}
-                onClick={() => onChange(!checked)}
-            >
-                {checked && (
-                    <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                )}
-            </div>
-            <span className="text-sm text-slate-700">{label}</span>
-        </label>
-    );
-}
-
-// ==========================================
-// Main Page Component
-// ==========================================
-
 export default function AddProviderPage() {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -261,7 +226,7 @@ export default function AddProviderPage() {
         prescriptionCapable: 'yes',
 
         // Solutions Summary
-        linkedSolutions: false,
+        category: '',
         affiliateLink: '',
         commissionType: 'percentage',
         commissionPercentage: '',
@@ -291,6 +256,11 @@ export default function AddProviderPage() {
             return;
         }
 
+        if (!form.category) {
+            setError('Category is required');
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
 
@@ -307,6 +277,7 @@ export default function AddProviderPage() {
             await createProvider({
                 name: form.providerName.trim(),
                 slug: generateSlug(form.providerName),
+                category: form.category,
                 websiteUrl: form.websiteUrl || undefined,
                 businessName: form.businessName || undefined,
                 providerType: form.providerType || undefined,
@@ -358,7 +329,7 @@ export default function AddProviderPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Provider Information Section */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <h2 className="text-base font-semibold text-slate-900 mb-5">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-5">
                         Provider Information
                     </h2>
 
@@ -369,56 +340,52 @@ export default function AddProviderPage() {
                                 label="Provider Name"
                                 value={form.providerName}
                                 onChange={(val) => updateField('providerName', val)}
-                                placeholder="Dr. Sarah Lee"
-                                icon={<Stethoscope className="w-4 h-4" />}
+                                placeholder="Dr. Emily Carter"
                                 required
                             />
                             <InputWithIcon
                                 label="Business Name"
                                 value={form.businessName}
                                 onChange={(val) => updateField('businessName', val)}
-                                placeholder="Health Clinic Inc."
-                                icon={<Building2 className="w-4 h-4" />}
+                                placeholder="Wellness Clinic Ltd"
                             />
                         </div>
 
-                        {/* Row 2: Website URL (full width) */}
-                        <InputWithIcon
-                            label="Website URL"
-                            value={form.websiteUrl}
-                            onChange={(val) => updateField('websiteUrl', val)}
-                            placeholder="https://www.example.com"
-                            type="url"
-                            icon={<Globe className="w-4 h-4" />}
-                        />
-
-                        {/* Row 3: Contact Email & Contact Phone */}
+                        {/* Row 2: Website URL & Contact Email */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <InputWithIcon
+                                label="Website URL"
+                                value={form.websiteUrl}
+                                onChange={(val) => updateField('websiteUrl', val)}
+                                placeholder="https://example.com"
+                                type="url"
+                            />
                             <InputWithIcon
                                 label="Contact Email"
                                 value={form.contactEmail}
                                 onChange={(val) => updateField('contactEmail', val)}
                                 placeholder="contact@example.com"
                                 type="email"
-                                icon={<Mail className="w-4 h-4" />}
-                            />
-                            <InputWithIcon
-                                label="Contact Phone"
-                                value={form.contactPhone}
-                                onChange={(val) => updateField('contactPhone', val)}
-                                placeholder="+1 (555) 000-0000"
-                                type="tel"
-                                icon={<Phone className="w-4 h-4" />}
+                                required
                             />
                         </div>
 
-                        {/* Row 4: Country/Location, Provider Type, Prescription Capable */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {/* Row 3: Primary Category, Country/Location, Provider Type, Prescription Capable */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                            <SelectField
+                                label="Primary Category"
+                                value={form.category}
+                                onChange={(val) => updateField('category', val as ProviderCategory)}
+                                options={PROVIDER_CATEGORY_OPTIONS}
+                                placeholder="Select category"
+                                required
+                            />
                             <SelectField
                                 label="Country / Location Coverage"
                                 value={form.countryLocation}
                                 onChange={(val) => updateField('countryLocation', val)}
-                                options={COUNTRIES.map((c) => ({ value: c, label: c }))}
+                                options={COUNTRIES.map((c) => ({ value: c, label: c === 'United States of America' ? 'New York City, NY' : c }))}
+                                icon={<MapPin className="w-4 h-4" />}
                             />
                             <SelectField
                                 label="Provider Type"
@@ -440,33 +407,27 @@ export default function AddProviderPage() {
                 </div>
 
                 {/* Solutions Summary Section */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                    <h2 className="text-base font-semibold text-slate-900 mb-5">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mt-8">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-5">
                         Solutions Summary
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                        {/* Linked Solutions */}
-                        <div className="space-y-2">
-                            <label className="block text-sm font-medium text-slate-700">
-                                Linked Solutions
-                            </label>
-                            <div className="h-10 px-3 bg-white border border-slate-200 rounded-lg flex items-center">
-                                <Checkbox
-                                    label="+6"
-                                    checked={form.linkedSolutions}
-                                    onChange={(val) => updateField('linkedSolutions', val)}
-                                />
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                        <SelectField
+                            label="Linked Solutions"
+                            value=""
+                            onChange={() => {}}
+                            options={[{ value: 'linked', label: 'Linked Solutions (+6)' }]}
+                            icon={<CheckSquare className="w-4 h-4 text-teal-600" />}
+                        />
 
                         {/* Affiliate Link */}
                         <InputWithIcon
                             label="Affiliate Link"
                             value={form.affiliateLink}
                             onChange={(val) => updateField('affiliateLink', val)}
-                            placeholder="https://aff.example.com"
-                            icon={<Link2 className="w-4 h-4" />}
+                            placeholder="https://partner.com/ref/healthpilot"
+                            required
                         />
 
                         {/* Commission Type */}
@@ -478,21 +439,29 @@ export default function AddProviderPage() {
                         />
 
                         {/* Commission % */}
-                        <InputWithIcon
-                            label="Commission %"
-                            value={form.commissionPercentage}
-                            onChange={(val) => updateField('commissionPercentage', val)}
-                            placeholder="10"
-                            icon={<Percent className="w-4 h-4" />}
-                        />
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-700">Commission %</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    value={form.commissionPercentage}
+                                    onChange={(e) => updateField('commissionPercentage', e.target.value)}
+                                    placeholder="15"
+                                    className="w-full h-10 px-3 py-2 pr-8 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-end gap-3">
+                <div className="flex items-center justify-between pt-8 pb-4 border-b border-transparent">
                     <Link
                         href="/admin/providers"
-                        className="px-5 py-2.5 text-sm font-medium text-teal-700 border border-teal-600 rounded-lg hover:bg-teal-50 transition-colors"
+                        className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
                     >
                         Cancel
                     </Link>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useProviders } from '@/hooks/use-providers';
+import { getProviderCategoryLabel } from '@/lib/provider-categories';
 import {
     Table,
     TableBody,
@@ -115,6 +116,9 @@ export default function ProvidersPage() {
                                     Provider Name
                                 </TableHead>
                                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
+                                    Category
+                                </TableHead>
+                                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
                                     Status
                                 </TableHead>
                                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
@@ -138,6 +142,9 @@ export default function ProvidersPage() {
                                         <p className="font-medium text-slate-900">
                                             {provider.name}
                                         </p>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-4 text-slate-600 text-sm">
+                                        {getProviderCategoryLabel(provider.category)}
                                     </TableCell>
                                     <TableCell className="px-4 py-4">
                                         <StatusPill variant={getProviderStatusVariant(provider.status)} />

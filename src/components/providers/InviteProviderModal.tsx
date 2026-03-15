@@ -30,7 +30,7 @@ export function InviteProviderModal({ isOpen, onClose, onLinkGenerated }: Invite
             onLinkGenerated(result.inviteUrl, email.trim());
             setEmail('');
             onClose();
-        } catch (error) {
+        } catch {
             // Error is handled by the mutation
         }
     };
@@ -67,7 +67,6 @@ export function InviteProviderModal({ isOpen, onClose, onLinkGenerated }: Invite
                         Generate an invite link to send to a provider. They&apos;ll be able to fill out their information and submit it for review.
                     </p>
 
-                    {/* Email Input */}
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-slate-700">
                             Provider Email <span className="text-red-500">*</span>

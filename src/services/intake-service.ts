@@ -11,7 +11,19 @@ interface ApiResponse<T> {
 // Types
 // ============================================
 
-export type FieldType = 'TEXT' | 'NUMBER' | 'EMAIL' | 'DATE' | 'SELECT' | 'MULTI_SELECT' | 'RADIO' | 'CHECKBOX' | 'TEXTAREA' | 'PHONE' | 'BOOLEAN';
+export type FieldType =
+    | 'TEXT'
+    | 'NUMBER'
+    | 'EMAIL'
+    | 'DATE'
+    | 'SELECT'
+    | 'MULTI_SELECT'
+    | 'RADIO'
+    | 'CHECKBOX'
+    | 'TEXTAREA'
+    | 'PHONE'
+    | 'BOOLEAN'
+    | 'BLOOD_TEST';
 export type IntakeFlowStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
 
 export interface IntakeFlowScoringDomain {

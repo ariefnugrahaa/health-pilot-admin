@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
     Home,
     Users,
-    Settings,
+    Settings as SettingsIcon,
     Shield,
     ChevronLeft,
     Link as LinkIcon,
@@ -13,7 +13,20 @@ import {
     ClipboardSignature,
     HelpCircle,
     FileText,
+    LogOut,
+    User as UserIcon,
+    MoreVertical
 } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/stores/auth-store';
 import type { AdminUser } from '@/core/domain/types';
 
 interface SidebarProps {
@@ -38,7 +51,7 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Labs', href: '/admin/labs', icon: Microscope },
     { label: 'Blood Test Orders', href: '/admin/blood-test-orders', icon: ClipboardSignature },
     { label: 'Intake', href: '/admin/intake', icon: HelpCircle },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Settings', href: '/admin/settings', icon: SettingsIcon },
 ];
 
 export function AdminSidebar({
@@ -49,6 +62,13 @@ export function AdminSidebar({
     user,
 }: SidebarProps) {
     const pathname = usePathname();
+    const router = useRouter();
+    const { logout } = useAuthStore();
+
+    const handleLogout = () => {
+        logout();
+        router.push('/');
+    };
 
     const isActive = (href: string): boolean => {
         return pathname === href || pathname.startsWith(href + '/');
@@ -71,6 +91,72 @@ export function AdminSidebar({
                 <item.icon className={`w-5 h-5 ${active ? 'text-teal-600' : 'text-slate-400'}`} />
                 {(!collapsed || isMobile) && <span>{item.label}</span>}
             </Link>
+        );
+    };
+
+    const renderUserAndControls = (isMobile = false) => {
+        const isCollapsed = collapsed && !isMobile;
+
+        return (
+            <div className="p-3 border-t border-gray-100 flex flex-col gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className={`flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors w-full focus:outline-none ${isCollapsed ? 'justify-center' : ''}`}>
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-mint-500 flex items-center justify-center shrink-0">
+                                <span className="text-white text-sm font-bold">
+                                    {user?.firstName?.charAt(0) || 'A'}
+                                    {user?.lastName?.charAt(0) || 'U'}
+                                </span>
+                            </div>
+                            {!isCollapsed && (
+                                <>
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-sm font-semibold text-slate-900 truncate">
+                                            {user?.firstName} {user?.lastName}
+                                        </p>
+                                        <p className="text-xs text-slate-500 truncate">
+                                            {user?.role?.replace('_', ' ') || 'Admin User'}
+                                        </p>
+                                    </div>
+                                    <MoreVertical className="w-4 h-4 text-slate-400 shrink-0" />
+                                </>
+                            )}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align={isCollapsed ? "center" : "end"} side="top" sideOffset={12} className="w-56 rounded-xl p-2 z-[100]">
+                        <DropdownMenuLabel className="px-3 py-2">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-semibold">
+                                    {user?.firstName} {user?.lastName}
+                                </span>
+                                <span className="text-xs text-muted-foreground mt-0.5">
+                                    {user?.email || 'admin@example.com'}
+                                </span>
+                                <Badge variant="secondary" className="w-fit mt-2 text-[10px]">
+                                    {user?.role?.replace('_', ' ') || 'Administrator'}
+                                </Badge>
+                            </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="rounded-lg px-3 py-2 cursor-pointer">
+                            <UserIcon className="w-4 h-4 mr-2" />
+                            Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="rounded-lg px-3 py-2 cursor-pointer">
+                            <SettingsIcon className="w-4 h-4 mr-2" />
+                            Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            className="rounded-lg px-3 py-2 cursor-pointer text-destructive focus:text-destructive"
+                            onClick={handleLogout}
+                        >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Sign out
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         );
     };
 
@@ -98,19 +184,7 @@ export function AdminSidebar({
                 </nav>
 
                 {/* User Profile */}
-                <div className="p-4 border-t border-gray-100">
-                    <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-                        <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center shrink-0">
-                            <span className="font-bold text-cyan-700 text-sm">AU</span>
-                        </div>
-                        {!collapsed && (
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-slate-900 truncate">Admin User</p>
-                                <p className="text-xs text-slate-500 truncate">System Administrator</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                {renderUserAndControls()}
             </aside>
 
             {/* Mobile Sidebar Overlay */}
@@ -133,17 +207,7 @@ export function AdminSidebar({
                     <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
                         {NAV_ITEMS.map((item) => renderNavItem(item, true))}
                     </nav>
-                    <div className="p-4 border-t border-gray-100">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-cyan-100 flex items-center justify-center">
-                                <span className="font-bold text-cyan-700 text-sm">AU</span>
-                            </div>
-                            <div>
-                                <p className="text-sm font-semibold text-slate-900">Admin User</p>
-                                <p className="text-xs text-slate-500">System Administrator</p>
-                            </div>
-                        </div>
-                    </div>
+                    {renderUserAndControls(true)}
                 </div>
             </aside>
         </>

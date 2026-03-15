@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { AdminSidebar } from '@/components/admin/sidebar';
-import { AdminHeader } from '@/components/admin/header';
 import { QueryProvider } from '@/providers/query-provider';
 import { ConfirmDialogProvider } from '@/components/shared';
 import { Toaster } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu, Shield } from 'lucide-react';
 
 export default function AdminLayout({
     children,
@@ -64,10 +63,23 @@ export default function AdminLayout({
                 className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[260px]'
                     }`}
             >
-                <AdminHeader
-                    user={user}
-                    onMenuClick={() => setMobileSidebarOpen(true)}
-                />
+                {/* Mobile Header */}
+                <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-gray-100 sticky top-0 z-20">
+                    <div className="flex items-center gap-3 text-teal-600">
+                        <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
+                            <Shield className="w-5 h-5" />
+                        </div>
+                        <span className="font-heading font-bold text-lg text-slate-900 tracking-tight">
+                            HEALTH PILOT
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => setMobileSidebarOpen(true)}
+                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                </div>
                 <main className="flex-1 p-4 sm:p-6 lg:p-8">
                     <QueryProvider>
                         {children}

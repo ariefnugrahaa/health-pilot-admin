@@ -7,14 +7,13 @@ import {
     submitOnboardingForm,
     type ValidateInviteResponse,
 } from '@/services/provider-service';
+import { PROVIDER_CATEGORY_OPTIONS, type ProviderCategory } from '@/lib/provider-categories';
 import {
     Loader2,
     ArrowRight,
-    ArrowLeft,
     Check,
     Users,
     Sparkles,
-    Shield,
     CheckCircle2,
     X,
     HeartPulse,
@@ -27,6 +26,7 @@ import {
 interface FormData {
     // Step 1: Provider Identity
     providerName: string;
+    category: ProviderCategory | '';
     businessName: string;
     website: string;
     contactEmail: string;
@@ -48,6 +48,7 @@ interface FormData {
 
 interface ValidationErrors {
     providerName?: string;
+    category?: string;
     contactEmail?: string;
     contactPhone?: string;
     website?: string;
@@ -59,6 +60,7 @@ interface ValidationErrors {
 
 const initialFormData: FormData = {
     providerName: '',
+    category: '',
     businessName: '',
     website: '',
     contactEmail: '',
@@ -133,9 +135,11 @@ export default function ProviderOnboardingPage() {
             try {
                 const result = await validateInviteToken(token);
                 setInviteInfo(result);
-                if (result.email) {
-                    setFormData((prev) => ({ ...prev, contactEmail: result.email || '' }));
-                }
+                setFormData((prev) => ({
+                    ...prev,
+                    category: result.category || prev.category,
+                    contactEmail: result.email || prev.contactEmail,
+                }));
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Invalid or expired invite link');
             } finally {
@@ -193,6 +197,10 @@ export default function ProviderOnboardingPage() {
 
         if (!formData.providerName.trim()) {
             errors.providerName = 'Provider name is required';
+        }
+
+        if (!formData.category) {
+            errors.category = 'Category is required';
         }
 
         if (!formData.contactEmail.trim()) {
@@ -281,6 +289,12 @@ export default function ProviderOnboardingPage() {
             return;
         }
 
+        if (!formData.category) {
+            setValidationErrors((prev) => ({ ...prev, category: 'Category is required' }));
+            setCurrentStep(1);
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
 
@@ -288,6 +302,7 @@ export default function ProviderOnboardingPage() {
             // Transform form data to match API expected format
             const payload = {
                 name: formData.providerName,
+                category: formData.category,
                 businessName: formData.businessName,
                 websiteUrl: formData.website,
                 contactEmail: formData.contactEmail,
@@ -554,6 +569,34 @@ export default function ProviderOnboardingPage() {
                                     <option key={type} value={type}>{type}</option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* Category */}
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Category <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={formData.category}
+                                onChange={(e) => {
+                                    updateFormData({ category: e.target.value as ProviderCategory | '' });
+                                    if (validationErrors.category) {
+                                        setValidationErrors((prev) => ({ ...prev, category: undefined }));
+                                    }
+                                }}
+                                className={`w-full h-10 px-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 appearance-none bg-white ${validationErrors.category ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-teal-500'
+                                    }`}
+                            >
+                                <option value="" disabled>Select category</option>
+                                {PROVIDER_CATEGORY_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            {validationErrors.category && (
+                                <p className="text-sm text-red-500">{validationErrors.category}</p>
+                            )}
                         </div>
 
                         {/* Prescription Capable */}

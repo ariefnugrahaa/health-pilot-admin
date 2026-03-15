@@ -66,6 +66,11 @@ export function InviteLinkModal({ isOpen, onClose, inviteUrl, email }: InviteLin
                         </div>
                     </div>
 
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Email</p>
+                        <p className="mt-1 text-sm font-medium text-slate-900 truncate">{email}</p>
+                    </div>
+
                     {/* Link Display */}
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-slate-700">

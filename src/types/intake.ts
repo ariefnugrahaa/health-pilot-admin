@@ -1,5 +1,32 @@
-export type FieldType = 'TEXT' | 'NUMBER' | 'EMAIL' | 'DATE' | 'SELECT' | 'MULTI_SELECT' | 'RADIO' | 'CHECKBOX' | 'TEXTAREA' | 'PHONE' | 'BOOLEAN';
+export type FieldType =
+  | 'TEXT'
+  | 'NUMBER'
+  | 'EMAIL'
+  | 'DATE'
+  | 'SELECT'
+  | 'MULTI_SELECT'
+  | 'RADIO'
+  | 'CHECKBOX'
+  | 'TEXTAREA'
+  | 'PHONE'
+  | 'BOOLEAN'
+  | 'BLOOD_TEST';
 export type IntakeFlowStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+export type IntakeFlowFieldRenderAs = 'slider';
+export type IntakeFlowChoiceStyle = 'stack' | 'card-grid';
+
+export interface IntakeFlowFieldValidationRules extends Record<string, unknown> {
+  min?: number;
+  max?: number;
+  step?: number;
+  pattern?: string;
+  renderAs?: IntakeFlowFieldRenderAs;
+  leftLabel?: string;
+  rightLabel?: string;
+  showValue?: boolean;
+  choiceStyle?: IntakeFlowChoiceStyle;
+  columns?: number;
+}
 
 export interface IntakeFlowScoringDomain {
   id: string;
@@ -96,7 +123,7 @@ export interface IntakeFlowField {
   helperText: string | null;
   isRequired: boolean;
   order: number;
-  validationRules: Record<string, unknown> | null;
+  validationRules: IntakeFlowFieldValidationRules | null;
   options: Array<{ value: string; label: string; description?: string }> | null;
   dependsOnField: string | null;
   dependsOnValue: string | null;
@@ -167,7 +194,7 @@ export interface CreateFieldInput {
   helperText?: string;
   isRequired?: boolean;
   order: number;
-  validationRules?: Record<string, unknown>;
+  validationRules?: IntakeFlowFieldValidationRules;
   options?: Array<{ value: string; label: string; description?: string }>;
   dependsOnField?: string;
   dependsOnValue?: string;
@@ -180,7 +207,7 @@ export interface UpdateFieldInput {
   helperText?: string;
   isRequired?: boolean;
   order?: number;
-  validationRules?: Record<string, unknown>;
+  validationRules?: IntakeFlowFieldValidationRules;
   options?: Array<{ value: string; label: string; description?: string }>;
   dependsOnField?: string;
   dependsOnValue?: string;

@@ -34,7 +34,7 @@ export default function InviteProviderPage() {
                 email: includeEmail && email ? email : 'No email specified',
             });
             setShowLinkModal(true);
-        } catch (error) {
+        } catch {
             // Error handled by mutation
         }
     };

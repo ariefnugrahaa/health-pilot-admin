@@ -38,6 +38,7 @@ import type {
   FieldType,
   IntakeFlowActionRule,
   IntakeFlowBloodMarkerRule,
+  IntakeFlowFieldValidationRules,
   IntakeFlowOutputMappingConfig,
   IntakeFlowField,
   IntakeFlowRecommendationPriorityItem,
@@ -60,6 +61,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'RADIO', label: 'Radio group' },
   { value: 'CHECKBOX', label: 'Checkbox' },
   { value: 'BOOLEAN', label: 'Yes/No' },
+  { value: 'BLOOD_TEST', label: 'Blood test question' },
 ];
 
 const FIELD_TYPE_LABEL: Record<FieldType, string> = {
@@ -74,6 +76,7 @@ const FIELD_TYPE_LABEL: Record<FieldType, string> = {
   RADIO: 'Radio group',
   CHECKBOX: 'Checkbox',
   BOOLEAN: 'Yes/No',
+  BLOOD_TEST: 'Blood test question',
 };
 
 type OptionDraft = {
@@ -88,6 +91,7 @@ type QuestionDraft = {
   helperText: string;
   isRequired: boolean;
   options: OptionDraft[];
+  validationRules: IntakeFlowFieldValidationRules;
   dependsOnField: string;
   dependsOnValue: string;
 };
@@ -108,6 +112,7 @@ type ConditionalOperator = 'answered' | 'equals';
 type EditorTab = 'questions' | 'scoring' | 'rules' | 'outputMapping';
 
 const OPTION_FIELD_TYPES: FieldType[] = ['SELECT', 'MULTI_SELECT', 'RADIO', 'CHECKBOX'];
+const CHOICE_STYLE_FIELD_TYPES: FieldType[] = ['RADIO', 'CHECKBOX', 'MULTI_SELECT'];
 const BLOOD_MARKER_OPERATORS: IntakeFlowBloodMarkerRule['operator'][] = ['>', '>=', '<', '<=', '='];
 const BLOOD_MARKER_ACTION_TYPES: IntakeFlowBloodMarkerRule['actionType'][] = ['ADD', 'SUBTRACT', 'SET'];
 const RULE_CONDITION_TYPES: Array<{ value: 'TAG_EXISTS' | 'RISK_LEVEL' | 'DOMAIN_SCORE'; label: string }> = [
@@ -120,6 +125,73 @@ const RULE_ACTION_TYPES: Array<{ value: 'INCLUDE_PATHWAY' | 'EXCLUDE_PATHWAY' | 
   { value: 'EXCLUDE_PATHWAY', label: 'Exclude Pathway' },
   { value: 'ADD_TAG', label: 'Add Tag' },
 ];
+
+function normalizeValidationRules(
+  rules: IntakeFlowFieldValidationRules | Record<string, unknown> | null | undefined,
+): IntakeFlowFieldValidationRules {
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) {
+    return {};
+  }
+
+  const normalized: IntakeFlowFieldValidationRules = { ...rules };
+
+  for (const key of ['min', 'max', 'step', 'columns'] as const) {
+    const value = normalized[key] as unknown;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const parsed = Number(value);
+      (normalized as any)[key] = Number.isFinite(parsed) ? parsed : undefined;
+    }
+  }
+
+  if (typeof normalized.renderAs !== 'string') {
+    delete normalized.renderAs;
+  }
+  if (typeof normalized.leftLabel !== 'string') {
+    delete normalized.leftLabel;
+  }
+  if (typeof normalized.rightLabel !== 'string') {
+    delete normalized.rightLabel;
+  }
+  if (typeof normalized.showValue !== 'boolean') {
+    delete normalized.showValue;
+  }
+  if (normalized.choiceStyle !== 'stack' && normalized.choiceStyle !== 'card-grid') {
+    delete normalized.choiceStyle;
+  }
+
+  return normalized;
+}
+
+function sanitizeValidationRulesForType(
+  type: FieldType,
+  validationRules: IntakeFlowFieldValidationRules,
+): IntakeFlowFieldValidationRules {
+  const nextRules = normalizeValidationRules(validationRules);
+
+  if (type !== 'NUMBER') {
+    delete nextRules.renderAs;
+    delete nextRules.min;
+    delete nextRules.max;
+    delete nextRules.step;
+    delete nextRules.leftLabel;
+    delete nextRules.rightLabel;
+    delete nextRules.showValue;
+  } else if (nextRules.renderAs !== 'slider') {
+    delete nextRules.renderAs;
+    delete nextRules.leftLabel;
+    delete nextRules.rightLabel;
+    delete nextRules.showValue;
+  }
+
+  if (!CHOICE_STYLE_FIELD_TYPES.includes(type)) {
+    delete nextRules.choiceStyle;
+    delete nextRules.columns;
+  } else if (nextRules.choiceStyle !== 'card-grid') {
+    delete nextRules.columns;
+  }
+
+  return nextRules;
+}
 
 function createBloodMarkerRuleDraft(): IntakeFlowBloodMarkerRule {
   return {
@@ -203,6 +275,7 @@ function toQuestionDraft(field: IntakeFlowField): QuestionDraft {
       value: opt.value,
       label: opt.label,
     })),
+    validationRules: normalizeValidationRules(field.validationRules),
     dependsOnField: field.dependsOnField ?? '',
     dependsOnValue: field.dependsOnValue ?? '',
   };
@@ -810,12 +883,24 @@ export default function EditIntakeFlowPage() {
       throw new Error('Please add at least one valid option for this question type.');
     }
 
+    const validationRules = sanitizeValidationRulesForType(draft.type, draft.validationRules);
+
+    if (draft.type === 'NUMBER' && validationRules.renderAs === 'slider') {
+      const min = typeof validationRules.min === 'number' ? validationRules.min : 1;
+      const max = typeof validationRules.max === 'number' ? validationRules.max : 10;
+
+      if (max <= min) {
+        throw new Error('Slider maximum must be greater than the minimum value.');
+      }
+    }
+
     return {
       label: draft.label.trim() || 'Untitled question',
       type: draft.type,
       placeholder: normalizeOptional(draft.placeholder),
       helperText: normalizeOptional(draft.helperText),
       isRequired: draft.isRequired,
+      validationRules: Object.keys(validationRules).length > 0 ? validationRules : undefined,
       options: needsOptions ? normalizedOptions : undefined,
       dependsOnField: normalizeOptional(draft.dependsOnField),
       dependsOnValue: draft.dependsOnField
@@ -1321,6 +1406,8 @@ export default function EditIntakeFlowPage() {
                       const draft = questionDrafts[field.id] ?? toQuestionDraft(field);
                       const isExpanded = expandedFieldId === field.id;
                       const showOptions = OPTION_FIELD_TYPES.includes(draft.type);
+                      const showChoiceStyleSettings = CHOICE_STYLE_FIELD_TYPES.includes(draft.type);
+                      const isSliderField = draft.type === 'NUMBER' && draft.validationRules.renderAs === 'slider';
 
                       return (
                         <article key={field.id} className="overflow-hidden rounded-xl border border-gray-200">
@@ -1362,6 +1449,10 @@ export default function EditIntakeFlowPage() {
                                             ? draft.options
                                             : createDefaultOptions()
                                           : [],
+                                        validationRules: sanitizeValidationRulesForType(
+                                          event.target.value as FieldType,
+                                          draft.validationRules,
+                                        ),
                                       })
                                     }
                                     className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
@@ -1434,6 +1525,218 @@ export default function EditIntakeFlowPage() {
                                   className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
                                 />
                               </div>
+
+                              {draft.type === 'NUMBER' && (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                  <div className="flex flex-col gap-4">
+                                    <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSliderField}
+                                        onChange={(event) =>
+                                          updateQuestionDraft(field.id, {
+                                            validationRules: {
+                                              ...draft.validationRules,
+                                              renderAs: event.target.checked ? 'slider' : undefined,
+                                              min:
+                                                typeof draft.validationRules.min === 'number'
+                                                  ? draft.validationRules.min
+                                                  : 1,
+                                              max:
+                                                typeof draft.validationRules.max === 'number'
+                                                  ? draft.validationRules.max
+                                                  : 10,
+                                              step:
+                                                typeof draft.validationRules.step === 'number'
+                                                  ? draft.validationRules.step
+                                                  : 1,
+                                              showValue:
+                                                typeof draft.validationRules.showValue === 'boolean'
+                                                  ? draft.validationRules.showValue
+                                                  : true,
+                                            },
+                                          })
+                                        }
+                                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                      />
+                                      Render this number question as a slider
+                                    </label>
+
+                                    {isSliderField && (
+                                      <>
+                                        <div className="grid gap-4 md:grid-cols-3">
+                                          <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Minimum
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={draft.validationRules.min ?? 1}
+                                              onChange={(event) =>
+                                                updateQuestionDraft(field.id, {
+                                                  validationRules: {
+                                                    ...draft.validationRules,
+                                                    min: Number(event.target.value || 0),
+                                                  },
+                                                })
+                                              }
+                                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Maximum
+                                            </label>
+                                            <input
+                                              type="number"
+                                              value={draft.validationRules.max ?? 10}
+                                              onChange={(event) =>
+                                                updateQuestionDraft(field.id, {
+                                                  validationRules: {
+                                                    ...draft.validationRules,
+                                                    max: Number(event.target.value || 0),
+                                                  },
+                                                })
+                                              }
+                                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Step
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min="0.1"
+                                              step="0.1"
+                                              value={draft.validationRules.step ?? 1}
+                                              onChange={(event) =>
+                                                updateQuestionDraft(field.id, {
+                                                  validationRules: {
+                                                    ...draft.validationRules,
+                                                    step: Number(event.target.value || 1),
+                                                  },
+                                                })
+                                              }
+                                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                          <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Left label
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={String(draft.validationRules.leftLabel ?? '')}
+                                              onChange={(event) =>
+                                                updateQuestionDraft(field.id, {
+                                                  validationRules: {
+                                                    ...draft.validationRules,
+                                                    leftLabel: event.target.value,
+                                                  },
+                                                })
+                                              }
+                                              placeholder="Very poor (1)"
+                                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                            />
+                                          </div>
+
+                                          <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                              Right label
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={String(draft.validationRules.rightLabel ?? '')}
+                                              onChange={(event) =>
+                                                updateQuestionDraft(field.id, {
+                                                  validationRules: {
+                                                    ...draft.validationRules,
+                                                    rightLabel: event.target.value,
+                                                  },
+                                                })
+                                              }
+                                              placeholder="Excellent (10)"
+                                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                                          <input
+                                            type="checkbox"
+                                            checked={draft.validationRules.showValue !== false}
+                                            onChange={(event) =>
+                                              updateQuestionDraft(field.id, {
+                                                validationRules: {
+                                                  ...draft.validationRules,
+                                                  showValue: event.target.checked,
+                                                },
+                                              })
+                                            }
+                                            className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                          />
+                                          Show the selected value beside the question
+                                        </label>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {showChoiceStyleSettings && (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                  <div className="grid gap-4 md:grid-cols-[1fr_180px]">
+                                    <div>
+                                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                        Choice display
+                                      </label>
+                                      <select
+                                        value={draft.validationRules.choiceStyle ?? 'stack'}
+                                        onChange={(event) =>
+                                          updateQuestionDraft(field.id, {
+                                            validationRules: {
+                                              ...draft.validationRules,
+                                              choiceStyle: event.target.value as 'stack' | 'card-grid',
+                                            },
+                                          })
+                                        }
+                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500"
+                                      >
+                                        <option value="stack">Stacked list</option>
+                                        <option value="card-grid">Card grid</option>
+                                      </select>
+                                    </div>
+
+                                    <div>
+                                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                        Columns
+                                      </label>
+                                      <select
+                                        value={draft.validationRules.columns === 3 ? '3' : '2'}
+                                        disabled={(draft.validationRules.choiceStyle ?? 'stack') !== 'card-grid'}
+                                        onChange={(event) =>
+                                          updateQuestionDraft(field.id, {
+                                            validationRules: {
+                                              ...draft.validationRules,
+                                              columns: Number(event.target.value),
+                                            },
+                                          })
+                                        }
+                                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                                      >
+                                        <option value="2">2 columns</option>
+                                        <option value="3">3 columns</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                               {showOptions && (
                                 <div>

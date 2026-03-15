@@ -4,6 +4,7 @@
  */
 
 import { api } from '@/lib/api-client';
+import type { ProviderCategory } from '@/lib/provider-categories';
 
 // ============================================
 // Types
@@ -13,6 +14,7 @@ export interface ProviderListItem {
     id: string;
     name: string;
     slug: string;
+    category: ProviderCategory | null;
     status: 'PENDING_APPROVAL' | 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
     supportedRegions: string[];
     logoUrl: string | null;
@@ -27,6 +29,7 @@ export interface ProviderListItem {
 export interface CreateProviderPayload {
     name: string;
     slug: string;
+    category?: ProviderCategory;
     description?: string;
     logoUrl?: string;
     websiteUrl?: string;
@@ -48,6 +51,7 @@ export interface ProviderDetail {
     id: string;
     name: string;
     slug: string;
+    category: ProviderCategory | null;
     description: string | null;
     logoUrl: string | null;
     websiteUrl: string | null;
@@ -182,6 +186,7 @@ export async function getProviderById(id: string): Promise<ProviderWithTreatment
 // ============================================
 
 export interface InviteProviderPayload {
+    category?: ProviderCategory;
     email?: string;
     expiresInDays?: number; // Default 7 days
     isReusable?: boolean;
@@ -193,6 +198,7 @@ export interface InviteProviderResponse {
     inviteToken: string;
     inviteUrl: string;
     expiresAt: string;
+    category: ProviderCategory | null;
 }
 
 /**
@@ -219,6 +225,7 @@ export async function generateInviteLink(
 export interface OnboardingFormData {
     // Basic Info
     name: string;
+    category: ProviderCategory;
     businessName: string;
     providerType: string;
     description: string;
@@ -247,8 +254,9 @@ export interface OnboardingFormData {
 export interface ValidateInviteResponse {
     valid: boolean;
     inviteId: string;
-    email: string;
+    email: string | null;
     expiresAt: string;
+    category: ProviderCategory | null;
 }
 
 /**

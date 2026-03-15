@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
+  ChevronDown,
   ChevronUp,
   Loader2,
   BriefcaseMedical,
@@ -100,13 +101,27 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+  const [isOpen, setIsOpen] = useState(true);
+
   return (
     <section className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-6 py-4">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex w-full items-center justify-between bg-white px-6 py-4 transition-colors hover:bg-[#f9fafb] ${isOpen ? "border-b border-[#e5e7eb]" : ""}`}
+      >
         <h3 className="text-[17px] font-bold text-[#1f2937]">{title}</h3>
-        <ChevronUp className="h-5 w-5 text-[#9ca3af]" />
+        <ChevronUp className={`h-5 w-5 text-[#9ca3af] transition-transform duration-200 ${isOpen ? "" : "rotate-180"}`} />
+      </button>
+      <div
+        className={`grid transition-all duration-200 ease-in-out ${
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="px-6 py-6">{children}</div>
+        </div>
       </div>
-      <div className="px-6 py-6">{children}</div>
     </section>
   );
 }
@@ -219,51 +234,57 @@ export default function LandingPageSettingsPage() {
   }
 
   return (
-    <div className="w-full px-2 py-4">
-      <button
-        type="button"
-        onClick={() => router.push("/admin/settings")}
-        className="inline-flex items-center gap-2 text-[14px] font-medium text-[#16a3a1] transition-colors hover:text-[#138f8d]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Settings
-      </button>
-
-      <div className="mb-2 mt-6">
-        <h1 className="text-[28px] font-bold tracking-tight text-[#1f2937]">
-          Landing Settings
-        </h1>
-        <p className="mt-1.5 text-[15px] text-[#6b7280]">
-          Manage content and visibility for the homepage.
-        </p>
-      </div>
-
-      <div className="mt-6 border-b border-[#e5e7eb]">
-        <nav className="-mb-px flex space-x-8">
+    <>
+      <div className="-mx-4 -mt-4 mb-8 bg-white px-4 pt-6 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-8 lg:-mx-8 lg:-mt-8 lg:px-8 lg:pt-8">
+        <div>
           <button
             type="button"
-            onClick={() => setActiveTab("before-login")}
-            className={`whitespace-nowrap border-b-2 py-3 text-[14px] font-medium transition-colors ${activeTab === "before-login"
-              ? "border-[#16a3a1] text-[#16a3a1]"
-              : "border-transparent text-[#6b7280] hover:text-[#374151]"
-              }`}
+            onClick={() => router.push("/admin/settings")}
+            className="mb-8 inline-flex items-center gap-2 text-[14px] font-medium text-[#16a3a1] transition-colors hover:text-[#138f8d]"
           >
-            Before Login
+            <ArrowLeft className="h-4 w-4" />
+            Back to Settings
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("after-login")}
-            className={`whitespace-nowrap border-b-2 py-3 text-[14px] font-medium transition-colors ${activeTab === "after-login"
-              ? "border-[#16a3a1] text-[#16a3a1]"
-              : "border-transparent text-[#6b7280] hover:text-[#374151]"
-              }`}
-          >
-            After Login
-          </button>
-        </nav>
+
+          <div>
+            <h1 className="text-[28px] font-bold tracking-tight text-[#1f2937]">
+              Landing Settings
+            </h1>
+            <p className="mt-1.5 text-[15px] text-[#6b7280]">
+              Manage content and visibility for the homepage.
+            </p>
+          </div>
+
+          <div className="mt-8 border-b border-[#e5e7eb]">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                type="button"
+                onClick={() => setActiveTab("before-login")}
+                className={`whitespace-nowrap border-b-2 py-3 text-[14px] font-medium transition-colors ${
+                  activeTab === "before-login"
+                    ? "border-[#16a3a1] text-[#16a3a1]"
+                    : "border-transparent text-[#6b7280] hover:text-[#374151]"
+                }`}
+              >
+                Before Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("after-login")}
+                className={`whitespace-nowrap border-b-2 py-3 text-[14px] font-medium transition-colors ${
+                  activeTab === "after-login"
+                    ? "border-[#16a3a1] text-[#16a3a1]"
+                    : "border-transparent text-[#6b7280] hover:text-[#374151]"
+                }`}
+              >
+                After Login
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-6 pb-20">
+      <div className="flex max-w-5xl flex-col gap-6 pb-20">
         {error && (
           <div className="flex items-center gap-2 rounded-xl border border-[#f3d6a8] bg-[#fff9ed] px-4 py-3 text-[#8a5a00]">
             <AlertCircle className="h-5 w-5" />
@@ -296,7 +317,7 @@ export default function LandingPageSettingsPage() {
           </div>
         </Section>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
           <Section title="Guided Health Check Card">
             <div className="space-y-5">
               <div>
@@ -464,7 +485,7 @@ export default function LandingPageSettingsPage() {
         </Section>
 
         <Section title="Trust Highlights">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {activeSettings.trustHighlights.map((item, index) => (
               <div key={index} className="space-y-4">
                 <h4 className="text-[16px] font-bold text-[#1f2937]">
@@ -558,7 +579,7 @@ export default function LandingPageSettingsPage() {
           </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
